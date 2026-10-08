@@ -55,7 +55,7 @@ def md_table(d: pd.DataFrame, index: bool = False) -> str:
 
     def fmt(v):
         if isinstance(v, str):
-            return v
+            return v.replace("|", "\\|")  # slot names contain "|"
         if pd.isna(v):
             return ""
         if isinstance(v, (int, np.integer)) or (isinstance(v, float) and v == int(v) and abs(v) >= 10):
@@ -140,18 +140,22 @@ check("3-cone: median of ≥ 4 cuts per rep",
       n_cuts[reps.drill_name == "THREE_CONE_DRILL"].median() >= 4)
 
 # Turn direction must match route semantics (receiver's side of the formation).
-first = pos_cuts.sort_values("apex_frame").groupby("event_id").first()
+# Reps with no detected cut count as misses, so missed detections can't hide.
+first_dir = (pos_cuts.sort_values("apex_frame").groupby("event_id")["turn_dir"].first()
+             .reindex(reps.index))
 expect = {"CURL_ROUTE_RIGHT": "L", "COMEBACK_ROUTE_RIGHT": "R", "SLANT_ROUTE_LEFT": "R",
           "SPEED_OUT_ROUTE_LEFT": "L", "DAGGER_ROUTE_LEFT": "R", "SLOT_SAIL_ROUTE_RIGHT": "R"}
 sem = pd.DataFrame([
     {"drill": d, "expected first break": f"{'left' if e == 'L' else 'right'}",
-     "reps": int((first.drill_name == d).sum()),
-     "share matching": (first.loc[first.drill_name == d, "turn_dir"] == e).mean()}
+     "reps": int((reps.drill_name == d).sum()),
+     "no cut detected": int(first_dir[reps.drill_name == d].isna().sum()),
+     "share matching": (first_dir[reps.drill_name == d] == e).mean()}
     for d, e in expect.items()
 ])
 section("First break direction vs route", sem,
         note="A right-side curl breaks back inside (left), a right-side comeback breaks to the sideline (right), "
-             "a left-side slant breaks inside (right), and so on. Agreement confirms the left/right sign.")
+             "a left-side slant breaks inside (right), and so on. Agreement confirms the left/right sign. "
+             "Reps with no detected cut count as misses.")
 check("first-break direction matches the route in ≥ 90% of reps, every route",
       (sem["share matching"] >= 0.9).all(), f"min {sem['share matching'].min():.0%}")
 

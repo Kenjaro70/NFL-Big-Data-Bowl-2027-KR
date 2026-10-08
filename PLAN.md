@@ -105,7 +105,7 @@ and turn load (v²/r = s·dθ/dt) from smoothed `dir` or x/y.
 ### Phase 1 results (Oct 8; full tables in `reports/01_combine_features.md`)
 
 The cut detector (`src/cuts.py`) finds the drill's known breaks: exactly two ~176° reversals in 94% of shuttles,
-none on straight go routes, and the route's first break goes the expected way in 95–100% of reps (which also
+none on straight go routes, and the route's first break goes the expected way in 91–100% of reps, counting reps with no detected cut as misses (which also
 confirms the left/right sign). In the shuttle and 3-cone, tracking-derived braking correlates −0.50 and −0.44
 with the official times, so the metrics measure real agility.
 
