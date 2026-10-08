@@ -62,7 +62,7 @@ def md_table(d: pd.DataFrame, index: bool = False) -> str:
 
     def fmt(v):
         if isinstance(v, str):
-            return v
+            return v.replace("|", "\\|")  # slot names contain "|"
         if pd.isna(v):
             return ""
         if isinstance(v, (int, np.integer)) or (isinstance(v, float) and v == int(v) and abs(v) >= 10):
@@ -159,6 +159,8 @@ kept = cuts[cuts.kept].copy()
 n_win = routes[has_window].groupby("route_ran").size().drop(list(R.EXCLUDED_ROUTES))
 first = kept.sort_values([*R.KEY, "apex_frame"]).groupby(R.KEY).first()
 fg = first.groupby("route_ran")
+side_ok = fg.apply(lambda d: (d.break_side == EXPECT[d.name]).mean() if d.name in EXPECT else np.nan,
+                   include_groups=False)
 per_route = pd.DataFrame({
     "routes": n_win,
     "with a break": (fg.size() / n_win).map(pct),
@@ -167,18 +169,17 @@ per_route = pd.DataFrame({
     "1st break: turn (deg)": fg.turn_deg.median(),
     "1st break: s after snap": fg.t_after_snap.median(),
     "expected side": pd.Series(EXPECT),
-    "1st break on expected side": fg.apply(lambda d: (d.break_side == EXPECT.get(d.name)).mean()
-                                           if d.name in EXPECT else np.nan, include_groups=False).map(pct),
+    "1st break on expected side*": side_ok.map(pct),
 }).sort_values("routes", ascending=False).fillna({"expected side": "—"}).rename_axis("route")
 section("Breaks found per route type", per_route, index=True,
         note=f"{len(kept):,} of {len(cuts):,} detected cuts count as route breaks. Rounded breaks (many posts, "
              "corners and crossers) turn less than the detector's 30° in 0.5 s and aren't counted; hitches often "
-             "end with the receiver settling rather than coming back. Routes with known geometry break the "
-             "expected way, which validates both the detector and the in / out labels.")
-side_ok = fg.apply(lambda d: (d.break_side == EXPECT[d.name]).mean() if d.name in EXPECT else np.nan,
-                   include_groups=False).dropna()
-check("first break goes the route's way (in: slant, in, post, cross; out: out, corner) in ≥ 80% of routes, "
-      "every route", (side_ok >= 0.8).all(), ", ".join(f"{k} {v:.0%}" for k, v in side_ok.items()))
+             "end with the receiver settling rather than coming back. \\* Share of routes *with a break* whose "
+             "first break goes the expected way; the share with a break is its own column, so misses stay visible. "
+             "Routes with known geometry break the expected way, which validates the detector and the in / out labels.")
+side_ok = side_ok.dropna()
+check("among routes with a break, the first goes the route's way (in: slant, in, post, cross; out: out, corner) "
+      "in ≥ 80%, every route", (side_ok >= 0.8).all(), ", ".join(f"{k} {v:.0%}" for k, v in side_ok.items()))
 
 late = kept[(kept.t_after_throw > 0) & kept.route_ran.isin(list(EXPECT))]
 late_first = late.sort_values([*R.KEY, "apex_frame"]).groupby(R.KEY).first()
