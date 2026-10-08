@@ -170,6 +170,68 @@ true r ≥ 0.52 (combine → game) and every combine → SOE test needs ≥ 0.54
 each break's scores vs SOE on the same route and player random effects (~14k breaks), has no such ceiling. It should
 carry the "the mechanic matters on the field" claim, with the player-level translation table as the second piece.
 
+### Phase 3 analysis plan (pre-registered Oct 8, committed before any combine–game or outcome link was computed)
+
+**Sample.** The 62 qualified WRs (≥ 100 regular-season routes), all with combine WR-drill features. Features,
+outcomes and scoring exactly as merged in Phase 2; nothing is re-tuned after this point.
+
+**Baseline (B).** log(draft overall pick) with UDFAs set to pick 260 plus a UDFA indicator, 40, 10-yd split,
+vertical, broad jump, height, weight. Missing tests (5–8 WRs each) are filled with the training-sample median.
+All predictors are standardized.
+
+**Signals.** Primary: speed into the break, speed retention, peak lateral acceleration (pre-registered in Phase 1).
+Secondary, reported but not corrected: peak braking. Each signal is tested on its own (one model per signal).
+
+**Test 1, link (1): does the combine trait carry into games?** Per signal m: OLS of game_m on B + combine_m. Statistic:
+the combine_m coefficient (reported as a partial r), two-sided p from HC3 standard errors, 95% CI from 2,000
+player bootstrap resamples. Also reported, not tested: raw r and r disattenuated by both reliabilities.
+
+**Test 2, link (2): does the mechanic matter on the field?** Unit: one route with a separation value and at least one
+kept break with its apex at or before the throw (breaks after the throw can't change separation at the throw);
+~8,400 routes. Predictor x = the route's mean break score for m. Model: SOE = a + b_w·(x − x̄_player) + b_b·x̄_player.
+Statistic: b_w, the within-player effect (on routes where a WR cuts better than their own average, are they more open?),
+which removes player-level confounds such as role, QB and scheme. Two-sided p from player-clustered (CR1) standard
+errors; 95% CI from 2,000 player-cluster bootstrap resamples. b_b is reported. Units: yd of SOE per 1 SD of break score.
+
+**Test 3, headline: does the combine trait predict separation beyond the baseline?** Per signal m: OLS of player SOE on
+B + combine_m; same statistic, p and CI as Test 1. Out-of-sample check, leave one draft class out (train on two classes,
+predict the third, pool the three held-out folds): ridge regression (penalty by generalized cross-validation inside the
+training folds) with B only vs B + all three primary signals; report out-of-sample R² for each and the gain.
+
+**Multiple testing.** Holm correction within each test family (3 primary signals), α = 0.05.
+Verdicts: "carries over" / "matters" = Holm-adjusted p < 0.05; "suggestive" = unadjusted p < 0.05 only; otherwise
+"no evidence", always with the CI and Phase 2's smallest detectable effect next to it.
+
+**Secondary (reported, not corrected).** Peak braking in all three tests; target rate and yards per route run as
+outcomes in Test 3; Test 3 on rookie-season SOE (WRs with ≥ 100 rookie routes) so the three classes are on equal
+footing; Test 2 with all kept breaks instead of pre-throw breaks only; b_w per draft class (does the sign hold?).
+
+### Phase 3 results (Oct 8; full tables in `reports/03_models.md`)
+
+Every pre-registered test ran as written; nothing was re-tuned. 62 qualified WRs; 8,371 routes for Test 2.
+
+| Signal | Test 1: combine → game trait (β, SD per SD) | Test 2: break score → SOE, within player (yd per SD) | Test 3: combine trait → SOE (yd per SD) |
+|---|---|---|---|
+| Speed into the break | +0.15 [−0.08, +0.37], no evidence | **+0.11 [+0.07, +0.15], matters** (Holm p < 0.001) | +0.00 [−0.06, +0.06], no evidence |
+| Speed retention | +0.10 [−0.15, +0.37], no evidence | **+0.08 [+0.03, +0.13], matters** (Holm p = 0.009) | +0.04 [−0.02, +0.10], no evidence |
+| Peak lateral acceleration | +0.02 [−0.24, +0.28], no evidence | +0.03 [−0.02, +0.07], no evidence | +0.00 [−0.05, +0.06], no evidence |
+| Peak braking (secondary) | −0.07 [−0.38, +0.21] | −0.12 [−0.17, −0.06], p < 0.001 | −0.02 [−0.07, +0.03] |
+
+- **Link (1) not detected.** No combine cut trait predicts the same trait in games beyond the baseline (raw r −0.02
+  to 0.17). The intervals still allow moderate effects (β up to ~0.37), so this is "not detected", not "ruled out".
+- **Link (2) holds within players.** On routes where a WR enters the break faster, or keeps more of their speed through
+  it, than their own norm, they are more open at the throw: +0.11 and +0.08 yd per SD (route-level SOE has an SD of
+  1.91 yd). More braking goes with less separation (−0.12, secondary). Entry speed and retention keep a positive sign
+  in all three draft classes (secondary).
+- **Headline (Test 3) not detected.** No combine cut trait predicts SOE beyond the baseline. Leaving one draft class
+  out, adding the three signals lowers out-of-sample R² from 0.41 (baseline) to 0.38. The baseline's R² comes mostly
+  from weight (heavier WRs are less open, −0.14 yd per SD; exploratory, probably role).
+
+**Implication for Phase 4.** The combine route drills measure the mechanic but don't predict it on Sundays, and they
+don't add to the stopwatch for separation. The mechanic itself matters in games: break entry speed and speed retention
+are worth about 0.1 yd of separation per SD within a receiver. The writeup's framing (lead with the null transfer, or
+with the in-game effect) is the open decision for Phase 4.
+
 ## 6. Phases and timeline (13 weeks)
 
 | # | Phase | Dates | Done when |
@@ -177,7 +239,7 @@ carry the "the mechanic matters on the field" claim, with the player-level trans
 | 0 | Setup + data audit | Oct 7 – Oct 18 | ✅ Oct 8: data loads; counts per position/class/drill; REG-season filter verified (`notebooks/00_audit.py`) |
 | 1 | Combine features | Oct 19 – Nov 8 | ✅ Oct 8: cut detector validated on combine drills; feature table per player (`notebooks/01_combine_features.py`) |
 | 2 | Game features + outcomes | Nov 9 – Nov 22 | ✅ Oct 8: detector validated on game routes; game cut features and outcome table per WR (`notebooks/02_game_features.py`) |
-| 3 | Modeling | Nov 23 – Dec 13 | Leave-one-draft-class-out results vs. baseline; uncertainty intervals |
+| 3 | Modeling | Nov 23 – Dec 13 | ✅ Oct 8: pre-registered tests with leave-one-draft-class-out results vs. baseline and bootstrap intervals (`notebooks/03_models.py`) |
 | 4 | Writeup + viz | Dec 14 – Jan 2 | Draft notebook public; ≤ 2,000 words; < 10 figures |
 | 5 | Buffer + submit | Jan 3 – Jan 6 | Submitted by Jan 5 (one day early) |
 
