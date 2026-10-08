@@ -63,21 +63,21 @@ Instead of jumping straight from Combine numbers to career stats (small N, noisy
 
 ```
 Combine cut mechanics  ──(1)──>  same mechanics in NFL games  ──(2)──>  NFL outcome
-(shuttle, 3-cone,               (each route break / cut                 (separation,
- position drills)                in game tracking)                       EPA, targets)
+(WR position drills)             (each route break / cut                 (separation,
+                                  in game tracking)                       EPA, targets)
 ```
 
 - Link (1) has thousands of game reps per player, so player-level game metrics are stable.
 - Link (2) shows the mechanic matters on the field.
 - Headline: **which Combine movement traits carry over into games, and which don't**, beyond what the stopwatch time already says.
 
-Every claim must beat the **baseline model**: draft pick + standard combine results (40, split, 3-cone, shuttle, height, weight).
+Every claim must beat the **baseline model**: draft pick + 40, split, vertical, broad jump, height, and weight.
 
 ## 4. Recommended focus: wide receivers (route breaks → separation)
 
 Why WRs:
 - Richest outcome: `separation_at_pass_forward`, targets, `route_ran`, YAC, EPA per route.
-- Direct drill match: `SKILL_DRILLS_WR` (route drills, gauntlet), short shuttle, 3-cone.
+- Direct drill match: `SKILL_DRILLS_WR` (route drills, gauntlet); shuttle and 3-cone tracking cover only ~25% of WRs.
 - Listed first in the organizers' examples.
 
 Stretch (only if WR finishes early): DBs (`SKILL_DRILLS_DB` backpedal/transition → ball-arrival closing speed).
