@@ -101,7 +101,8 @@ report.extend([
     "- Per cut: speed into the break (max over the prior 1.5 s), apex speed, speed retention (apex / entry), "
     "peak braking, distance used to slow down, peak lateral acceleration, speed regained 0.5 s after the apex.",
     "- Each metric is z-scored within its **slot** (the same break of the same drill across players, e.g. "
-    "the curl's plant). A player's feature is their mean z, so players who ran different drills are comparable.",
+    "the curl's plant) after a linear adjustment for the break's turn angle, so breaks are compared at equal "
+    "sharpness. A player's feature is their mean z, so players who ran different drills are comparable.",
     "",
 ])
 
@@ -224,11 +225,12 @@ stop = ["forty", "ten_yd_split", "three_cone", "short_shuttle", "vertical", "bro
         "combine_height"]
 wr = feats[feats.combine_position == "WR"].join(cr[stop])
 cols = [f"pos_{m}" for m in F.METRICS]
-vs = pd.DataFrame({c: [wr[f].corr(wr[c]) for f in cols] for c in stop}, index=list(F.METRICS))
+vs = pd.DataFrame({c: [wr[f].corr(wr[c]) for f in cols] for c in stop}, index=pd.Index(list(F.METRICS), name="feature"))
 section("WR features vs standard combine results (Pearson r)", vs, index=True,
         note=f"{len(wr)} WRs; 3-cone and shuttle times exist for only ~1/3 of them. Small |r| against the "
              "40 means the cut features are not just straight-line speed again.")
-section("WR feature intercorrelations", wr[cols].corr().set_axis(list(F.METRICS)).set_axis(list(F.METRICS), axis=1),
+section("WR feature intercorrelations",
+        wr[cols].corr().set_axis(pd.Index(list(F.METRICS), name="feature")).set_axis(list(F.METRICS), axis=1),
         index=True)
 
 # %% [markdown]
@@ -264,8 +266,10 @@ for i, label, off, ha in [(entry, "entry", (10, 0), "left"), (apex, "apex", (10,
     ax0.annotate(label, (x[i], y[i]), xytext=off, textcoords="offset points", color=INK, fontsize=9,
                  va="center", ha=ha)
 ax0.set_aspect("equal")
-ax0.autoscale()
-ax0.margins(0.25)
+# At least +/-6 yd of width, so labels beside a narrow path stay clear of the color bar.
+cx, half = (x.min() + x.max()) / 2, max((x.max() - x.min()) / 2 + 3, 6)
+ax0.set_xlim(cx - half, cx + half)
+ax0.set_ylim(y.min() - 2, y.max() + 2)
 ax0.set_title("Path (darker = faster)", loc="left")
 ax0.set_xlabel("yards")
 cb = fig.colorbar(lc, ax=ax0, shrink=0.7)

@@ -148,6 +148,8 @@ def cuts_for_reps(frames: pd.DataFrame, rep_cols: list[str]) -> pd.DataFrame:
             continue
         k = kinematics(r["x"].to_numpy(float), r["y"].to_numpy(float))
         key = key if isinstance(key, tuple) else (key,)
+        times = r["time"].to_numpy()
         for i, c in enumerate(detect_cuts(k)):
-            out.append({**dict(zip(rep_cols, key)), "cut_idx": i, "n_frames": len(r), **c})
+            out.append({**dict(zip(rep_cols, key)), "cut_idx": i, "n_frames": len(r),
+                        "apex_time": times[c["apex_frame"]], **c})
     return pd.DataFrame(out)
