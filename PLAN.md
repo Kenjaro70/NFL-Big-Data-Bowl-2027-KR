@@ -96,13 +96,41 @@ Stretch (only if WR finishes early): DBs (`SKILL_DRILLS_DB` backpedal/transition
 Smooth x/y before differentiating (e.g. Savitzky–Golay); 10 Hz derivatives are noisy.
 The provided `a` is unsigned in both sources, so signed (tangential) acceleration has to come from smoothed speed.
 
+### Phase 1 results (Oct 8; full tables in `reports/01_combine_features.md`)
+
+The cut detector (`src/cuts.py`) finds the drill's known breaks: exactly two ~176° reversals in 94% of shuttles,
+none on straight go routes, and the route's first break goes the expected way in 95–100% of reps (which also
+confirms the left/right sign). In the shuttle and 3-cone, tracking-derived braking correlates −0.50 and −0.44
+with the official times, so the metrics measure real agility.
+
+Each metric is z-scored within its slot (same break of the same drill across players), then averaged per player.
+Split-half reliability across a WR's ~9 drills / ~17 cuts:
+
+| Signal | Reliability | Decision |
+|---|---|---|
+| Speed into the break (`entry_speed`) | 0.58 | **pre-registered** |
+| Speed retention (apex ÷ entry) | 0.51 | **pre-registered** |
+| Peak lateral acceleration (turn load) | 0.53 | **pre-registered** |
+| Peak braking | 0.40 | secondary only (r = −0.89 with retention) |
+| Distance used to slow down | 0.23 | dropped |
+| Re-acceleration (speed regained in 0.5 s) | 0.11 | dropped (the catch follows the break in drills) |
+| Left/right asymmetry (any metric) | ≤ 0.08 | dropped (each route breaks a fixed way, so drill and side are confounded) |
+| Rep consistency (any metric) | 0.00–0.38 | dropped (almost no repeat reps of a drill) |
+
+The three pre-registered signals are nearly independent of the 40, the 10-yard split and size (|r| ≤ 0.2).
+They are not straight-line speed again, which is what the baseline-beating claim needs.
+
+**Power caveat for Phase 3.** With ~60 WRs, a correlation needs |r| ≥ 0.36 to be detected (80% power, α = 0.05).
+Combine-side reliability of ~0.55 shrinks any true correlation by ~0.7–0.75×, so only true |r| ≳ 0.5 are likely
+to show up. Shrinkage and the game-side rep counts (thousands of routes) matter more than adding signals.
+
 ## 6. Phases and timeline (13 weeks)
 
 | # | Phase | Dates | Done when |
 |---|---|---|---|
 | 0 | Setup + data audit | Oct 7 – Oct 18 | ✅ Oct 8: data loads; counts per position/class/drill; REG-season filter verified (`notebooks/00_audit.py`) |
-| 1 | Combine features | Oct 19 – Nov 8 | Cut detector works on combine drills; feature table per player |
-| 2 | Game features + outcomes | Nov 9 – Nov 22 | Same cut metrics computed on in-game routes; outcome table per player |
+| 1 | Combine features | Oct 19 – Nov 8 | ✅ Oct 8: cut detector validated on combine drills; feature table per player (`notebooks/01_combine_features.py`) |
+| 2 | Game features + outcomes | Nov 9 – Nov 22 | Same cut metrics computed on in-game routes (snap → pass forward, slots = `route_ran` × direction); outcome table per player |
 | 3 | Modeling | Nov 23 – Dec 13 | Leave-one-draft-class-out results vs. baseline; uncertainty intervals |
 | 4 | Writeup + viz | Dec 14 – Jan 2 | Draft notebook public; ≤ 2,000 words; < 10 figures |
 | 5 | Buffer + submit | Jan 3 – Jan 6 | Submitted by Jan 5 (one day early) |
@@ -128,8 +156,10 @@ The provided `a` is unsigned in both sources, so signed (tangential) acceleratio
 ```
 data/raw/        # CSVs from scripts/download_data.sh (gitignored)
 data/parquet/    # Parquet copies built by src/data.py (gitignored)
+data/features/   # derived cut / feature tables (gitignored)
 notebooks/       # 00_audit … 04_writeup
-src/             # data, smoothing, cuts, features, outcomes, models, viz
+src/             # data, cuts, features, outcomes, models, viz
+tests/           # python -m pytest
 reports/figures/
 ```
 
