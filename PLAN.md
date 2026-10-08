@@ -206,6 +206,32 @@ Verdicts: "carries over" / "matters" = Holm-adjusted p < 0.05; "suggestive" = un
 outcomes in Test 3; Test 3 on rookie-season SOE (WRs with ≥ 100 rookie routes) so the three classes are on equal
 footing; Test 2 with all kept breaks instead of pre-throw breaks only; b_w per draft class (does the sign hold?).
 
+### Phase 3 results (Oct 8; full tables in `reports/03_models.md`)
+
+Every pre-registered test ran as written; nothing was re-tuned. 62 qualified WRs; 8,371 routes for Test 2.
+
+| Signal | Test 1: combine → game trait (β, SD per SD) | Test 2: break score → SOE, within player (yd per SD) | Test 3: combine trait → SOE (yd per SD) |
+|---|---|---|---|
+| Speed into the break | +0.15 [−0.08, +0.37], no evidence | **+0.11 [+0.07, +0.15], matters** (Holm p < 0.001) | +0.00 [−0.06, +0.06], no evidence |
+| Speed retention | +0.10 [−0.15, +0.37], no evidence | **+0.08 [+0.03, +0.13], matters** (Holm p = 0.009) | +0.04 [−0.02, +0.10], no evidence |
+| Peak lateral acceleration | +0.02 [−0.24, +0.28], no evidence | +0.03 [−0.02, +0.07], no evidence | +0.00 [−0.05, +0.06], no evidence |
+| Peak braking (secondary) | −0.07 [−0.38, +0.21] | −0.12 [−0.17, −0.06], p < 0.001 | −0.02 [−0.07, +0.03] |
+
+- **Link (1) not detected.** No combine cut trait predicts the same trait in games beyond the baseline (raw r −0.02
+  to 0.17). The intervals still allow moderate effects (β up to ~0.37), so this is "not detected", not "ruled out".
+- **Link (2) holds within players.** On routes where a WR enters the break faster, or keeps more of their speed through
+  it, than their own norm, they are more open at the throw: +0.11 and +0.08 yd per SD (route-level SOE has an SD of
+  1.91 yd). More braking goes with less separation (−0.12, secondary). Entry speed and retention keep a positive sign
+  in all three draft classes (secondary).
+- **Headline (Test 3) not detected.** No combine cut trait predicts SOE beyond the baseline. Leaving one draft class
+  out, adding the three signals lowers out-of-sample R² from 0.41 (baseline) to 0.38. The baseline's R² comes mostly
+  from weight (heavier WRs are less open, −0.14 yd per SD; exploratory, probably role).
+
+**Implication for Phase 4.** The combine route drills measure the mechanic but don't predict it on Sundays, and they
+don't add to the stopwatch for separation. The mechanic itself matters in games: break entry speed and speed retention
+are worth about 0.1 yd of separation per SD within a receiver. The writeup's framing (lead with the null transfer, or
+with the in-game effect) is the open decision for Phase 4.
+
 ## 6. Phases and timeline (13 weeks)
 
 | # | Phase | Dates | Done when |
@@ -213,7 +239,7 @@ footing; Test 2 with all kept breaks instead of pre-throw breaks only; b_w per d
 | 0 | Setup + data audit | Oct 7 – Oct 18 | ✅ Oct 8: data loads; counts per position/class/drill; REG-season filter verified (`notebooks/00_audit.py`) |
 | 1 | Combine features | Oct 19 – Nov 8 | ✅ Oct 8: cut detector validated on combine drills; feature table per player (`notebooks/01_combine_features.py`) |
 | 2 | Game features + outcomes | Nov 9 – Nov 22 | ✅ Oct 8: detector validated on game routes; game cut features and outcome table per WR (`notebooks/02_game_features.py`) |
-| 3 | Modeling | Nov 23 – Dec 13 | Leave-one-draft-class-out results vs. baseline; uncertainty intervals |
+| 3 | Modeling | Nov 23 – Dec 13 | ✅ Oct 8: pre-registered tests with leave-one-draft-class-out results vs. baseline and bootstrap intervals (`notebooks/03_models.py`) |
 | 4 | Writeup + viz | Dec 14 – Jan 2 | Draft notebook public; ≤ 2,000 words; < 10 figures |
 | 5 | Buffer + submit | Jan 3 – Jan 6 | Submitted by Jan 5 (one day early) |
 
