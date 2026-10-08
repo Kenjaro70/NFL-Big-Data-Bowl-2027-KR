@@ -30,8 +30,10 @@ def to_parquet(overwrite: bool = False) -> None:
     con = duckdb.connect()
     for csv in sorted(RAW.glob("*.csv")):
         out = PARQUET / f"{csv.stem}.parquet"
-        if out.exists() and not overwrite:
-            continue
+        if out.exists():
+            if not overwrite:
+                continue
+            out.unlink()
         # sample_size=-1: infer types from the whole file (many columns are
         # NA for thousands of rows before the first real value).
         con.execute(
