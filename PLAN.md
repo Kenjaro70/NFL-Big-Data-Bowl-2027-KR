@@ -51,6 +51,11 @@ Data traps to handle in Phase 0:
   Standard 3-cone/shuttle *times* are also missing for ~65% of WRs, so the baseline uses 40, split, vertical, broad, size.
 - **`a` is unsigned magnitude in both combine and game tracking.** Deceleration must be derived from smoothed speed.
   `dir` uses the same convention in both (clockwise from +y), so cut geometry transfers directly.
+- **`a` is *total* acceleration (speed change + turning), not ds/dt.** It tracks sqrt(a_tan² + a_cen²) at r = 0.99 (combine)
+  and 0.87 (game) vs ~0.6 for |ds/dt|. At a cut it mixes braking and turning, and it agrees less well in game data,
+  so compute a_tan = ds/dt and a_cen = s·dθ/dt from x/y/s/dir the same way in both sources; don't compare vendor `a` across them.
+- **Combine `dis` is not the frame displacement** (median 0.33 in 3-cone to 0.90 in the 40, so it can't be rescaled).
+  Use `s` or x/y for distance in combine data. Game `dis` is fine.
 - **REG filter verified:** PRE is 14–20% and POST 3–5% of game frames. All game IDs are in `games.csv`.
   Use the `game_tracking_reg` / `player_play_reg` views in `src/data.py`.
 - `separation_at_pass_forward` is recorded on ~85% of WR routes (not just targets), so it works as a per-route outcome.
@@ -94,7 +99,8 @@ Stretch (only if WR finishes early): DBs (`SKILL_DRILLS_DB` backpedal/transition
 | Rep consistency | variation across attempts of the same drill |
 
 Smooth x/y before differentiating (e.g. Savitzky–Golay); 10 Hz derivatives are noisy.
-The provided `a` is unsigned in both sources, so signed (tangential) acceleration has to come from smoothed speed.
+The provided `a` is unsigned *total* acceleration in both sources, so signed (tangential) acceleration has to come from smoothed speed,
+and turn load (v²/r = s·dθ/dt) from smoothed `dir` or x/y.
 
 ## 6. Phases and timeline (13 weeks)
 
