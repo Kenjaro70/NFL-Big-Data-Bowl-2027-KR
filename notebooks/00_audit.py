@@ -38,9 +38,11 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 
 
 def md_table(d: pd.DataFrame) -> str:
-    def fmt(v):
+    def fmt(v, col):
         if pd.isna(v):
             return ""
+        if col == "season" or col.endswith("year"):
+            return str(int(v)) if isinstance(v, (int, float)) else str(v)  # 2023, not 2,023
         if isinstance(v, float):
             return f"{v:,.0f}" if v == int(v) else f"{v:,.2f}"
         if isinstance(v, int):
@@ -49,7 +51,7 @@ def md_table(d: pd.DataFrame) -> str:
 
     cols = [str(c) for c in d.columns]
     rows = ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
-    rows += ["| " + " | ".join(fmt(v) for v in r) + " |" for r in d.itertuples(index=False)]
+    rows += ["| " + " | ".join(fmt(v, c) for v, c in zip(r, cols)) + " |" for r in d.itertuples(index=False)]
     return "\n".join(rows)
 
 
