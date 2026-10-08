@@ -253,11 +253,24 @@ with the in-game effect) is the open decision for Phase 4.
 
 ## 8. Writeup plan (< 10 figures)
 
-1. One signature figure: a player's Combine cut vs. the same player's in-game cuts, overlaid.
-2. Translation table: which Combine traits carry into games (and which don't).
-3. Outcome chart: game cut metric vs. separation, with uncertainty.
-4. Scouting card: how a team would use the metric on draft day.
-5. Hidden-gem / bust case studies (2–3 players).
+**Framing (decided Oct 8): lead with the combine finding.** Working title: *"The cut that doesn't travel: what
+Combine route drills miss about NFL route breaks."* The headline answers the competition's question directly
+(Combine tracking → regular-season performance): the combine cut traits don't carry over, while the same
+mechanics measured in games do matter for separation.
+
+| # | Section | Words | Figure / table |
+|---|---|---|---|
+| 1 | Why cutting, why the Combine | ~200 | — |
+| 2 | Measuring a cut the same way twice (drills and games, one detector) | ~350 | **F1** signature: one WR's combine break vs the same WR's game breaks, speed through the turn |
+| 3 | Finding 1: the combine cut doesn't travel | ~350 | **T1** translation table (Test 1 + Test 3, with CIs and the smallest detectable effect) |
+| 4 | Finding 2: the game cut matters | ~350 | **F2** within-player separation vs break entry speed and retention; **F3** the three tests side by side |
+| 5 | Why the transfer fails (labeled as hypotheses) | ~250 | **F4** reliability: ~17 combine cuts vs ~150 game breaks per WR |
+| 6 | How a team would use it | ~250 | **F5** in-season scouting card; **F6** how many routes before a WR's break metrics are trustworthy |
+| 7 | Limits and what's next | ~150 | — |
+| | Appendix: method, pre-registration, code | — | linked public Kaggle notebook |
+
+About 1,900 words and 7 figures/tables, under the 2,000 / < 10 limits. F6 (stabilization by route count) and the
+F2 binned view are new descriptive work for Phase 4; no new hypothesis tests.
 
 ## 9. Repo layout
 
@@ -274,6 +287,6 @@ reports/figures/
 ## 10. Open decisions
 
 - Track: Open or University (University = undergraduates only).
-- Focus: WR (recommended) vs. another group.
+- ~~Focus~~: resolved. Wide receivers (Phases 1–3).
 - Team: solo or team.
 - ~~Data access~~: resolved. `scripts/download_data.sh` works with a `KGAT_` token in `KAGGLE_API_TOKEN` or `KAGGLE_API_KEY`.
