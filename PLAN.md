@@ -130,13 +130,45 @@ They are not straight-line speed again, which is what the baseline-beating claim
 Combine-side reliability of ~0.55 shrinks any true correlation by ~0.7–0.75×, so only true |r| ≳ 0.5 are likely
 to show up. Shrinkage and the game-side rep counts (thousands of routes) matter more than adding signals.
 
+### Phase 2 results (Oct 8; full tables in `reports/02_game_features.md`)
+
+The Phase 1 detector runs unchanged on 30,499 regular-season WR route windows (snap to 1 s after the throw).
+Where a route has a known shape, the first break goes that way: inside on 86–97% of slants, ins, posts and
+crossers, outside on 93–94% of outs and corners. Rounded breaks stay under the 30° threshold, so the share of
+routes with a counted break ranges from 37% (crossers) to 85% (outs).
+
+Design choices, made on game data only (no outcome or combine linkage looked at):
+- Breaks up to 0.5 s after the throw count: on timing routes the QB throws first, and 90% of those late breaks
+  still go the route's way. Turns less than 1 yd past the snap spot are release moves and don't count. No screens.
+- Break side is `in` / `out` relative to the middle of the field, not left / right, so a release move on a slant
+  can't share a slot with other receivers' main breaks.
+- Slot = route × side, and within a slot each metric is regressed on depth and turn angle. Game breaks of one route
+  type vary in geometry: plain slot z-scores correlate 0.56 with depth (entry speed) and −0.67 with angle (retention).
+- Outcome = separation over expected (SOE): separation at the throw minus the cohort mean for the same route,
+  coverage and time-to-throw bin. Coverage matters most (about 2.0 yd vs man, 3.4 vs zone).
+
+| Signal | Combine reliability | Game reliability | Smallest detectable true r, combine → game (70 WRs) |
+|---|---|---|---|
+| Speed into the break | 0.58 | 0.75 | 0.50 |
+| Speed retention | 0.51 | 0.29 | 0.85 |
+| Peak lateral acceleration | 0.53 | 0.50 | 0.64 |
+| Peak braking (secondary) | 0.40 | 0.25 | not detectable |
+
+Outcome reliability across games (73 WRs): target rate 0.80, yards per route run 0.74, raw separation 0.58, SOE 0.44.
+Adjusting for coverage lowers reliability because part of raw separation is role (which coverage a WR draws).
+
+**Implication for Phase 3.** Player-to-player tests can only find large effects: speed into the break needs a
+true r ≥ 0.50 (combine → game) and every combine → SOE test needs ≥ 0.64. A route-level model of link (2), with each
+break's scores vs SOE on the same route and player random effects (~16k breaks), has no such ceiling. It should carry
+the "the mechanic matters on the field" claim, with the player-level translation table as the second piece.
+
 ## 6. Phases and timeline (13 weeks)
 
 | # | Phase | Dates | Done when |
 |---|---|---|---|
 | 0 | Setup + data audit | Oct 7 – Oct 18 | ✅ Oct 8: data loads; counts per position/class/drill; REG-season filter verified (`notebooks/00_audit.py`) |
 | 1 | Combine features | Oct 19 – Nov 8 | ✅ Oct 8: cut detector validated on combine drills; feature table per player (`notebooks/01_combine_features.py`) |
-| 2 | Game features + outcomes | Nov 9 – Nov 22 | Same cut metrics computed on in-game routes (snap → pass forward, slots = `route_ran` × direction); outcome table per player |
+| 2 | Game features + outcomes | Nov 9 – Nov 22 | ✅ Oct 8: detector validated on game routes; game cut features and outcome table per WR (`notebooks/02_game_features.py`) |
 | 3 | Modeling | Nov 23 – Dec 13 | Leave-one-draft-class-out results vs. baseline; uncertainty intervals |
 | 4 | Writeup + viz | Dec 14 – Jan 2 | Draft notebook public; ≤ 2,000 words; < 10 figures |
 | 5 | Buffer + submit | Jan 3 – Jan 6 | Submitted by Jan 5 (one day early) |
@@ -164,7 +196,7 @@ data/raw/        # CSVs from scripts/download_data.sh (gitignored)
 data/parquet/    # Parquet copies built by src/data.py (gitignored)
 data/features/   # derived cut / feature tables (gitignored)
 notebooks/       # 00_audit … 04_writeup
-src/             # data, cuts, features, outcomes, models, viz
+src/             # data, cuts, features, routes, outcomes, stats, models, viz
 tests/           # python -m pytest
 reports/figures/
 ```
