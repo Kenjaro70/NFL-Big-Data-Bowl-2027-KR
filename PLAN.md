@@ -42,6 +42,21 @@ Data traps to handle in Phase 0:
 - Snaps depend on draft slot (teams play high picks). Always control for draft pick.
 - Small N: ~510 players total, split across ~15 positions.
 
+### Phase 0 findings (Oct 8; full tables in `reports/00_audit.md`)
+
+- **Effective WR N is ~60, not 106.** 82 WRs have any REG snap; 62 have 100+ REG routes, 38 have 300+.
+  2025 class median is 27 routes. Shrinkage (§7) is essential, and the 2025 holdout fold will be thin.
+- **Shuttle / 3-cone tracking covers only ~25% of WRs** (29 and 24 of 107). `SKILL_DRILLS_WR` covers all 107
+  (15 named route drills, ~1,500 reps), so WR cut signals must come from position drills.
+  Standard 3-cone/shuttle *times* are also missing for ~65% of WRs, so the baseline uses 40, split, vertical, broad, size.
+- **`a` is unsigned magnitude in both combine and game tracking.** Deceleration must be derived from smoothed speed.
+  `dir` uses the same convention in both (clockwise from +y), so cut geometry transfers directly.
+- **REG filter verified:** PRE is 14–20% and POST 3–5% of game frames. All game IDs are in `games.csv`.
+  Use the `game_tracking_reg` / `player_play_reg` views in `src/data.py`.
+- `separation_at_pass_forward` is recorded on ~85% of WR routes (not just targets), so it works as a per-route outcome.
+- Combine reps are keyed by `event_id` (a few share `(nfl_id, drill_name, attempt)`). Combine data is clean 10 Hz with no gaps.
+- No QBs, effectively no RBs, and no off-ball LBs in the cohort.
+
 ## 3. Core idea: the "translation chain" (recommended)
 
 Instead of jumping straight from Combine numbers to career stats (small N, noisy), link them in two steps:
@@ -79,12 +94,13 @@ Stretch (only if WR finishes early): DBs (`SKILL_DRILLS_DB` backpedal/transition
 | Rep consistency | variation across attempts of the same drill |
 
 Smooth x/y before differentiating (e.g. Savitzky–Golay); 10 Hz derivatives are noisy.
+The provided `a` is unsigned in both sources, so signed (tangential) acceleration has to come from smoothed speed.
 
 ## 6. Phases and timeline (13 weeks)
 
 | # | Phase | Dates | Done when |
 |---|---|---|---|
-| 0 | Setup + data audit | Oct 7 – Oct 18 | Data loads; counts per position/class/drill; REG-season filter verified |
+| 0 | Setup + data audit | Oct 7 – Oct 18 | ✅ Oct 8: data loads; counts per position/class/drill; REG-season filter verified (`notebooks/00_audit.py`) |
 | 1 | Combine features | Oct 19 – Nov 8 | Cut detector works on combine drills; feature table per player |
 | 2 | Game features + outcomes | Nov 9 – Nov 22 | Same cut metrics computed on in-game routes; outcome table per player |
 | 3 | Modeling | Nov 23 – Dec 13 | Leave-one-draft-class-out results vs. baseline; uncertainty intervals |
@@ -110,9 +126,10 @@ Smooth x/y before differentiating (e.g. Savitzky–Golay); 10 Hz derivatives are
 ## 9. Repo layout
 
 ```
-data/            # raw CSVs (gitignored)
+data/raw/        # CSVs from scripts/download_data.sh (gitignored)
+data/parquet/    # Parquet copies built by src/data.py (gitignored)
 notebooks/       # 00_audit … 04_writeup
-src/             # io, smoothing, cuts, features, outcomes, models, viz
+src/             # data, smoothing, cuts, features, outcomes, models, viz
 reports/figures/
 ```
 
@@ -121,4 +138,4 @@ reports/figures/
 - Track: Open or University (University = undergraduates only).
 - Focus: WR (recommended) vs. another group.
 - Team: solo or team.
-- Data access: Kaggle API token needed to download the 2.3 GB of data into this environment.
+- ~~Data access~~: resolved. `scripts/download_data.sh` works with a `KGAT_` token in `KAGGLE_API_TOKEN` or `KAGGLE_API_KEY`.
