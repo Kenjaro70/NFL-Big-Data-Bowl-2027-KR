@@ -7,16 +7,21 @@ from scipy.stats import norm
 
 
 def split_half(obs: pd.DataFrame, cols: list[str], unit: str = "game_id", n_iter: int = 200, seed: int = 0,
-               min_units: int = 6) -> pd.DataFrame:
+               min_units: int = 6, players=None) -> pd.DataFrame:
     """Spearman-Brown corrected split-half reliability of per-player means.
 
     `obs` has one row per observation (a cut, a route) with `nfl_id`, `unit` and `cols`.
     Each iteration splits every player's units (e.g. games) at random into two halves,
     averages each column per player within each half, and correlates the halves
-    across players. Players with fewer than `min_units` units are left out.
+    across players. Only `players` are used, if given; players with fewer than
+    `min_units` units are left out.
+
+    Restrict to players with enough volume: a few low-volume players have such
+    noisy half-means that they drag the correlation down for everyone.
     """
     rng = np.random.default_rng(seed)
-    d = obs[obs.groupby("nfl_id")[unit].transform("nunique") >= min_units]
+    d = obs if players is None else obs[obs.nfl_id.isin(players)]
+    d = d[d.groupby("nfl_id")[unit].transform("nunique") >= min_units]
     units = d[["nfl_id", unit]].drop_duplicates()
     stats: dict[str, list[float]] = {c: [] for c in cols}
     for _ in range(n_iter):

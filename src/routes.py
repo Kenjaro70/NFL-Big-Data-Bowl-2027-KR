@@ -8,6 +8,10 @@ vary more than drill breaks:
   apex is no later than 0.5 s after the throw: on timing routes the QB often
   releases just before the break. Cuts less than 1 yd past the receiver's snap
   position are release moves at the line, not route breaks, and are dropped.
+- Cuts also need their whole 1.5 s entry window after the snap (apex >= 1.5 s).
+  Earlier, entry speed and braking are measured partly on the receiver's stance
+  or pre-snap motion, and the smoothing has no frames before the snap to work
+  with: braking there tracks who goes in motion, not how a receiver cuts.
 - Break side is relative to the field: `in` turns toward the middle of the field
   (a proxy for the ball, which isn't tracked), `out` toward the sideline. Combine
   route drills are run from a fixed side, so there turn direction already means
@@ -30,6 +34,7 @@ FIELD_CENTER_Y = 160 / 3 / 2   # yd; the field is 53.3 yd wide
 TAIL = 1.0                     # s of tracking kept after the throw, so late breaks are fully measured
 MAX_AFTER_THROW = 0.5          # s: latest apex that still counts as part of the route
 MIN_DEPTH = 1.0                # yd past the snap position; shallower cuts are release moves
+MIN_APEX_AFTER_SNAP = C.ENTRY_WINDOW * C.DT  # s: the entry window (1.5 s) must start after the snap
 EXCLUDED_ROUTES = ("SCREEN",)  # designed separation, no route break
 MIN_CUTS_PER_SLOT = 20
 METRICS = ("entry_speed", "speed_retention", "peak_lat_accel", "peak_decel")
@@ -57,6 +62,7 @@ def wr_routes(con) -> pd.DataFrame:
             GROUP BY ALL)
         SELECT pp.game_id, pp.play_id, pp.nfl_id, pp.season, pp.week, pp.route_ran,
                coalesce(pp.team_coverage_man_zone, 'UNKNOWN') AS coverage, pp.play_direction,
+               coalesce(pp.in_motion_at_ball_snap, FALSE) AS in_motion,
                pp.pass_result, pp.target, pp.rec_yards, pp.yards_after_catch, pp.expected_yards_after_catch,
                pp.expected_points_added, pp.separation_at_pass_forward AS separation,
                ev.t_snap, ev.t_pass, (epoch_ms(ev.t_pass) - epoch_ms(ev.t_snap)) / 1000 AS ttt
@@ -128,6 +134,7 @@ def route_cuts(frames: pd.DataFrame, routes: pd.DataFrame) -> pd.DataFrame:
     cuts = pd.DataFrame(out)
     cuts["kept"] = (
         (cuts.t_after_throw <= MAX_AFTER_THROW + 1e-9)
+        & (cuts.t_after_snap >= MIN_APEX_AFTER_SNAP - 1e-9)
         & (cuts.depth >= MIN_DEPTH)
         & ~cuts.route_ran.isin(EXCLUDED_ROUTES)
     )

@@ -72,7 +72,8 @@ Combine cut mechanics  ──(1)──>  same mechanics in NFL games  ──(2)�
                                   in game tracking)                       EPA, targets)
 ```
 
-- Link (1) has thousands of game reps per player, so player-level game metrics are stable.
+- Link (1) compares the same mechanic in two places. Game features rest on ~150 route breaks per qualified WR
+  vs ~17 combine cuts, but game breaks vary with the play call, so game reliability is moderate (0.40–0.77; Phase 2).
 - Link (2) shows the mechanic matters on the field.
 - Headline: **which Combine movement traits carry over into games, and which don't**, beyond what the stopwatch time already says.
 
@@ -133,34 +134,41 @@ to show up. Shrinkage and the game-side rep counts (thousands of routes) matter 
 ### Phase 2 results (Oct 8; full tables in `reports/02_game_features.md`)
 
 The Phase 1 detector runs unchanged on 30,499 regular-season WR route windows (snap to 1 s after the throw).
-Where a route has a known shape, the first break goes that way: inside on 86–97% of slants, ins, posts and
-crossers, outside on 93–94% of outs and corners. Rounded breaks stay under the 30° threshold, so the share of
-routes with a counted break ranges from 37% (crossers) to 85% (outs).
+Where a route has a known shape, the first break goes that way: inside on 80–94% of slants, ins, posts and
+crossers, outside on 95–96% of outs and corners. Rounded breaks stay under the 30° threshold, so the share of
+routes with a counted break ranges from 27% (crossers) to 76% (outs).
 
 Design choices, made on game data only (no outcome or combine linkage looked at):
 - Breaks up to 0.5 s after the throw count: on timing routes the QB throws first, and 90% of those late breaks
   still go the route's way. Turns less than 1 yd past the snap spot are release moves and don't count. No screens.
+- Breaks also need their whole 1.5 s entry window after the snap. Earlier cuts are mostly release moves and
+  motion men turning upfield (31% in motion vs 6% later); their entry speed and braking are measured partly on the
+  stance or the motion, so they track role, not cutting. Cost: 45% of cuts detected on slants are that early.
 - Break side is `in` / `out` relative to the middle of the field, not left / right, so a release move on a slant
   can't share a slot with other receivers' main breaks.
 - Slot = route × side, and within a slot each metric is regressed on depth and turn angle. Game breaks of one route
-  type vary in geometry: plain slot z-scores correlate 0.56 with depth (entry speed) and −0.67 with angle (retention).
+  type vary in geometry: plain slot z-scores correlate 0.56 with depth (entry speed) and −0.68 with angle (retention).
 - Outcome = separation over expected (SOE): separation at the throw minus the cohort mean for the same route,
   coverage and time-to-throw bin. Coverage matters most (about 2.0 yd vs man, 3.4 vs zone).
+- Reliability is measured on the 62 qualified WRs (≥ 100 regular-season routes). Counting every WR with ≥ 6 games
+  instead adds 11 WRs with 11–95 routes, whose noisy averages cut SOE reliability from 0.72 to 0.44.
 
-| Signal | Combine reliability | Game reliability | Smallest detectable true r, combine → game (70 WRs) |
+| Signal | Combine reliability | Game reliability | Smallest detectable true r, combine → game (62 WRs) |
 |---|---|---|---|
-| Speed into the break | 0.58 | 0.75 | 0.50 |
-| Speed retention | 0.51 | 0.29 | 0.85 |
-| Peak lateral acceleration | 0.53 | 0.50 | 0.64 |
-| Peak braking (secondary) | 0.40 | 0.25 | not detectable |
+| Speed into the break | 0.58 | 0.77 | 0.52 |
+| Speed retention | 0.51 | 0.51 | 0.68 |
+| Peak lateral acceleration | 0.53 | 0.59 | 0.62 |
+| Peak braking (secondary) | 0.40 | 0.40 | 0.87 |
 
-Outcome reliability across games (73 WRs): target rate 0.80, yards per route run 0.74, raw separation 0.58, SOE 0.44.
-Adjusting for coverage lowers reliability because part of raw separation is role (which coverage a WR draws).
+Outcome reliability across games (62 qualified WRs): target rate 0.84, yards per route run 0.81, raw separation
+0.76, SOE 0.72, catch rate 0.70, EPA on targets per route 0.59, YAC over expected 0.16 (noise). SOE stays the
+Phase 3 outcome; the others are for reference. Every game feature and outcome also exists for the rookie season
+alone (median ~70 breaks per WR), so draft classes with one, two or three seasons can be compared on equal terms.
 
 **Implication for Phase 3.** Player-to-player tests can only find large effects: speed into the break needs a
-true r ≥ 0.50 (combine → game) and every combine → SOE test needs ≥ 0.64. A route-level model of link (2), with each
-break's scores vs SOE on the same route and player random effects (~16k breaks), has no such ceiling. It should carry
-the "the mechanic matters on the field" claim, with the player-level translation table as the second piece.
+true r ≥ 0.52 (combine → game) and every combine → SOE test needs ≥ 0.54–0.58. A route-level model of link (2), with
+each break's scores vs SOE on the same route and player random effects (~14k breaks), has no such ceiling. It should
+carry the "the mechanic matters on the field" claim, with the player-level translation table as the second piece.
 
 ## 6. Phases and timeline (13 weeks)
 

@@ -9,6 +9,7 @@
 # - `data/features/game_cuts.parquet`    one row per in-game route break, with scores
 # - `data/features/game_routes.parquet`  one row per WR route, with expected separation
 # - `data/features/wr_analysis.parquet`  one row per WR: draft, baseline tests, combine and game features, outcomes
+#                                        (all seasons, and rookie season alone)
 # - `reports/02_game_features.md` + `reports/figures/02_*.png`
 #
 # Every `check(...)` is a hard assertion. Phase 2 computes no correlation between combine
@@ -102,6 +103,7 @@ PRIMARY = ["entry_speed", "speed_retention", "peak_lat_accel"]  # pre-registered
 NAMES = {"entry_speed": "speed into the break", "speed_retention": "speed retention (apex / entry)",
          "peak_lat_accel": "peak lateral (turning) acceleration", "peak_decel": "peak braking (secondary)"}
 EXPECT = {"SLANT": "in", "IN": "in", "POST": "in", "CROSS": "in", "OUT": "out", "CORNER": "out"}
+MIN_ROUTES = 100  # "qualified" WR: enough regular-season routes for stable player-level numbers
 
 report.extend([
     "## Method", "",
@@ -109,8 +111,10 @@ report.extend([
     "from the snap to 1 s after the throw, both taken from the receiver's own tracking event tags.",
     "- **Cuts:** the Phase 1 detector runs unchanged, so game and combine breaks get identical smoothing, "
     "thresholds and metrics. A cut counts as a route break if its apex comes no later than 0.5 s after the throw "
-    "(on timing routes the QB releases before the break) and at least 1 yd past the receiver's snap position "
-    "(shallower turns are release moves at the line). Screens are left out: they have no route break.",
+    "(on timing routes the QB releases before the break), at least 1 yd past the receiver's snap position "
+    "(shallower turns are release moves at the line), and at least 1.5 s after the snap, so the whole 1.5 s "
+    "entry window is route running rather than the stance or pre-snap motion. Screens are left out: they have "
+    "no route break.",
     "- **Break side:** `in` turns toward the middle of the field, `out` toward the sideline. The ball isn't tracked, "
     "so the middle of the field stands in for it.",
     "- **Scores:** slot = route × break side. Game breaks in a slot still differ in depth and angle (a 5-yd quick "
@@ -120,7 +124,10 @@ report.extend([
     "- **Outcomes:** separation at the throw minus the cohort average for the same route, coverage (man / zone) "
     "and time to throw = separation over expected (SOE). Usage and production: target rate, yards per route run.",
     "- **Reliability:** split-half across games (each player's games split at random, 200 times, "
-    "Spearman–Brown corrected), for WRs with at least 6 games.",
+    f"Spearman–Brown corrected), for qualified WRs (≥ {MIN_ROUTES} regular-season routes). A few low-volume "
+    "WRs have such noisy averages that including them drags every reliability down.",
+    "- **Rookie season:** every game feature and outcome also exists for the rookie season alone, which every "
+    "draft class has exactly once.",
     "",
 ])
 
@@ -130,6 +137,7 @@ report.extend([
 # %%
 routes = R.wr_routes(con)
 has_window = routes.t_snap.notna() & routes.t_pass.notna()
+qualified = routes.groupby("nfl_id").size().loc[lambda n: n >= MIN_ROUTES].index
 frames = R.route_frames(con, routes)
 win = pd.DataFrame({"routes": [
     len(routes), routes.t_snap.notna().sum(), routes.t_pass.notna().sum(), has_window.sum(),
@@ -177,6 +185,21 @@ section("Breaks found per route type", per_route, index=True,
              "end with the receiver settling rather than coming back. \\* Share of routes *with a break* whose "
              "first break goes the expected way; the share with a break is its own column, so misses stay visible. "
              "Routes with known geometry break the expected way, which validates the detector and the in / out labels.")
+early = cuts.t_after_snap < R.MIN_APEX_AFTER_SNAP - 1e-9
+motion = cuts[R.KEY].merge(routes[[*R.KEY, "in_motion"]], on=R.KEY, how="left").in_motion.astype(bool)
+motion.index = cuts.index
+why = pd.DataFrame({"cuts": [
+    len(cuts), cuts.route_ran.isin(R.EXCLUDED_ROUTES).sum(), (cuts.t_after_throw > R.MAX_AFTER_THROW + 1e-9).sum(),
+    (cuts.depth < R.MIN_DEPTH).sum(), early.sum(), len(kept),
+]}, index=["detected in route windows", "on screens", "more than 0.5 s after the throw",
+           "less than 1 yd past the snap position", "less than 1.5 s after the snap", "route breaks kept"])
+section("Which detected cuts count as route breaks", why.rename_axis("step"), index=True,
+        note="Reasons overlap, so the middle rows don't add up. Cuts in the first 1.5 s are mostly release moves "
+             f"and receivers in motion turning upfield: {cuts[early].depth.lt(R.MIN_DEPTH).mean():.0%} are less "
+             f"than 1 yd deep, and {motion[early].mean():.0%} come from a receiver in motion at the snap (vs "
+             f"{motion[~early].mean():.0%} of later cuts). Their entry speed and braking are measured partly on the "
+             "stance or the motion, so how often a WR has one reflects their role, not how they cut. The cost is "
+             f"quick breaks: {early[cuts.route_ran == 'SLANT'].mean():.0%} of cuts detected on slants come this early.")
 side_ok = side_ok.dropna()
 check("among routes with a break, the first goes the route's way (in: slant, in, post, cross; out: out, corner) "
       "in ≥ 80%, every route", (side_ok >= 0.8).all(), ", ".join(f"{k} {v:.0%}" for k, v in side_ok.items()))
@@ -221,15 +244,16 @@ check("adjusted scores are uncorrelated with depth and turn angle (|r| < 0.05)",
 
 # %%
 gfeat = R.player_features(zc)
-rel_all = split_half(zc, zcols).set_index("feature")
-rel_main = split_half(R.main_breaks(zc), zcols).set_index("feature")
+rel_all = split_half(zc, zcols, players=qualified).set_index("feature")
+rel_main = split_half(R.main_breaks(zc), zcols, players=qualified).set_index("feature")
 rel_game = pd.DataFrame({
     "all route breaks (primary)": rel_all.reliability.values,
     "main break only": rel_main.reliability.values,
 }, index=[NAMES[m] for m in R.METRICS]).rename_axis("metric")
 section("Split-half reliability of WR game cut features", rel_game, index=True,
-        note=f"{rel_all.players.iloc[0]} WRs with ≥ 6 games (median {zc.groupby('nfl_id').size().median():.0f} "
-             "breaks per WR). Main break only = each route's first break on its designed side (hitches: first "
+        note=f"{rel_all.players.iloc[0]} qualified WRs (median "
+             f"{zc[zc.nfl_id.isin(qualified)].groupby('nfl_id').size().median():.0f} breaks per WR). "
+             "Main break only = each route's first break on its designed side (hitches: first "
              "break), a sensitivity check closest to a drill rep. Roughly: < 0.3 mostly noise, 0.5 usable with "
              "shrinkage, > 0.7 solid.")
 check("game speed into the break is a stable player trait (split-half ≥ 0.6)",
@@ -251,19 +275,23 @@ section("Mean separation at the throw (yd) by route and coverage",
              f"(route × coverage × time-to-throw bin) explain {O.explained_variance(sr):.0%} of route-level "
              "variance; the rest is the receiver, the defender and the play.")
 
-route_obs = routes.assign(target=routes.target.astype(float), yards=routes.rec_yards.fillna(0))
-rel_out = pd.concat([split_half(sr, ["separation", "soe"]),
-                     split_half(route_obs, ["target", "yards"])]).set_index("feature")
+route_obs = O.route_outcomes(routes)
+OUTCOME_OBS = {"separation": "separation", "soe": "soe", "target_rate": "target", "yprr": "yards",
+               "epa_per_route": "epa_route", "catch_rate": "catch", "yac_oe": "yac_oe"}
+rel_out = pd.concat([split_half(sr, ["separation", "soe"], players=qualified),
+                     *[split_half(route_obs[route_obs[c].notna()], [c], players=qualified)
+                       for c in list(OUTCOME_OBS.values())[2:]]]).set_index("feature")
+q_out = O.player_outcomes(routes, sr).loc[lambda d: d.index.isin(qualified)]
 out_tab = pd.DataFrame({
-    "per route": ["separation at the throw (yd)", "separation over expected (yd)", "targeted (0/1)",
-                  "receiving yards"],
-    "player value": ["mean separation", "SOE", "target rate", "yards per route run"],
-    "split-half reliability": rel_out.reliability.values,
-    "WRs (≥ 6 games)": rel_out.players.values,
-}, index=["separation", "soe", "target_rate", "yprr"]).rename_axis("outcome")
+    "player value": ["mean separation at the throw (yd)", "separation over expected, SOE (yd)", "target rate",
+                     "yards per route run", "EPA on targets, per route run", "catch rate (per target)",
+                     "YAC over expected (yd per catch)"],
+    "median": q_out[list(OUTCOME_OBS)].median().values,
+    "split-half reliability": rel_out.reliability.loc[list(OUTCOME_OBS.values())].values,
+}, index=list(OUTCOME_OBS)).rename_axis("outcome")
 section("Outcomes and their reliability", out_tab, index=True,
-        note="Adjusting for route, coverage and time to throw lowers reliability: part of a WR's raw separation "
-             "is their role (the coverage and routes they get). SOE is the fairer skill measure, but noisier.")
+        note=f"{len(q_out)} qualified WRs. SOE is the Phase 3 outcome; the rest are for reference. Catch rate and "
+             "YAC over expected rest on targets and catches only, so they are the noisiest.")
 
 # %% [markdown]
 # ## 6. One table per WR for Phase 3
@@ -277,22 +305,38 @@ baseline = con.sql("""SELECT nfl_id, combine_position, forty, ten_yd_split, vert
 cfeat = pd.read_parquet(FEATURES / "combine_player_features.parquet")
 cfeat = cfeat[["pos_n_cuts", "pos_n_drills", *[f"pos_{m}" for m in F.METRICS]]]
 pout = O.player_outcomes(routes, sr)
+rookie = routes.season == routes.nfl_id.map(players.draft_year)
+rookie_keys = routes.loc[rookie, R.KEY]
+pout_rookie = O.player_outcomes(routes[rookie], sr.merge(rookie_keys, on=R.KEY), prefix="rookie_")
+gfeat_rookie = R.player_features(zc.merge(rookie_keys, on=R.KEY), prefix="game_rookie")
 car = O.career(con)[["career_offensive_snaps", "career_games_active", "career_games_started"]]
 games_with_breaks = zc.groupby("nfl_id").game_id.nunique().rename("game_n_games")
-wr = players.join(baseline).join(cfeat).join(gfeat).join(games_with_breaks).join(pout).join(car)
+wr = (players.join(baseline).join(cfeat).join(gfeat).join(games_with_breaks).join(pout).join(car)
+      .join(gfeat_rookie).join(pout_rookie))
 wr.insert(wr.columns.get_loc("draft_overall_pick") + 1, "udfa", wr.draft_overall_pick.isna())
 
 has_combine = wr.pos_entry_speed.notna()
-enough_routes = wr.routes.fillna(0) >= 100
-game_ok = wr.game_n_games.fillna(0) >= 6
-cov = pd.DataFrame({"WRs": [len(wr), has_combine.sum(), enough_routes.sum(), game_ok.sum(),
-                            (has_combine & game_ok).sum(), (has_combine & enough_routes).sum()]},
-                   index=["WRs in the cohort", "with combine WR-drill features", "with ≥ 100 regular-season routes",
-                          "with game cut features from ≥ 6 games", "with combine features and game features "
-                          "from ≥ 6 games", "with combine features and ≥ 100 routes"]).rename_axis("group")
+enough_routes = wr.index.isin(qualified)
+cov = pd.DataFrame({"WRs": [len(wr), has_combine.sum(), enough_routes.sum(), (has_combine & enough_routes).sum()]},
+                   index=["WRs in the cohort", "with combine WR-drill features",
+                          f"qualified (≥ {MIN_ROUTES} regular-season routes)",
+                          "qualified, with combine features"]).rename_axis("group")
 section("Who is in the Phase 3 table", cov, index=True)
-check("every WR with ≥ 100 regular-season routes has game cut features and SOE",
+check(f"every qualified WR (≥ {MIN_ROUTES} regular-season routes) has game cut features and SOE",
       bool(wr.loc[enough_routes, ["game_entry_speed", "soe"]].notna().all().all()))
+
+by_class = wr.groupby("draft_year").agg(
+    WRs=("display_name", "size"),
+    qualified=("routes", lambda n: int((n >= MIN_ROUTES).sum())),
+    with_rookie_routes=("rookie_routes", "count"),
+    median_rookie_routes=("rookie_routes", "median"),
+    median_rookie_breaks=("game_rookie_n_cuts", "median"),
+)
+by_class.index = by_class.index.astype(int).astype(str)  # a year, not a count: no thousands separator
+section("Rookie-season coverage by draft class", by_class, index=True,
+        note="The 2025 class has one season, so few of its WRs qualify on all-season volume. Rookie-season "
+             "features and outcomes (`game_rookie_*`, `rookie_*` in `wr_analysis.parquet`) put every class on the "
+             "same footing, at the cost of fewer breaks per WR.")
 
 # %% [markdown]
 # ## 7. What Phase 3 can detect (reliability only, no linkage)
@@ -301,9 +345,7 @@ check("every WR with ≥ 100 regular-season routes has game cut features and SOE
 ccuts = pd.read_parquet(FEATURES / "combine_cuts.parquet")
 crel = F.split_half_reliability(ccuts[ccuts.drill_type == "SKILL_DRILLS_WR"], n_iter=200,
                                 metrics=tuple(R.METRICS)).set_index("feature").reliability
-n_link1 = int((has_combine & game_ok).sum())
-soe_ok = wr.index.isin(sr.groupby("nfl_id").game_id.nunique().loc[lambda s: s >= 6].index)
-n_soe = int((has_combine & soe_ok).sum())
+n_link1 = n_soe = int((has_combine & enough_routes).sum())
 rows = []
 for m in R.METRICS:
     rows.append(("combine → game", NAMES[m], crel[m], rel_all.reliability[f"{m}_z"], n_link1))

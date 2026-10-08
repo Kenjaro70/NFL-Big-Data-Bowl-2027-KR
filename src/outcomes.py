@@ -43,11 +43,29 @@ def explained_variance(sep_routes: pd.DataFrame) -> float:
     return float(1 - resid.var() / sep_routes.separation.var())
 
 
-def player_outcomes(routes: pd.DataFrame, sep_routes: pd.DataFrame) -> pd.DataFrame:
-    """One row per WR: usage, production and separation over regular-season routes."""
-    g = routes.groupby("nfl_id")
-    targeted = routes[routes.target.astype(bool)]
-    caught = targeted[targeted.pass_result == "C"]
+def route_outcomes(routes: pd.DataFrame) -> pd.DataFrame:
+    """Per-route outcome columns whose player mean is the player outcome.
+
+    `target` (0/1) and `yards` average to target rate and yards per route run, and
+    `epa_route` (EPA when targeted, else 0) to EPA per route run. `catch` is only set
+    on targets and `yac_oe` only on catches, so their means are per target / per catch.
+    """
+    targeted = routes.target.fillna(False).astype(bool)
+    caught = targeted & (routes.pass_result == "C")
+    return routes.assign(
+        target=targeted.astype(float),
+        yards=routes.rec_yards.fillna(0),
+        epa_route=routes.expected_points_added.where(targeted, 0.0),
+        catch=caught.astype(float).where(targeted),
+        yac_oe=(routes.yards_after_catch - routes.expected_yards_after_catch).where(caught),
+    )
+
+
+def player_outcomes(routes: pd.DataFrame, sep_routes: pd.DataFrame, prefix: str = "") -> pd.DataFrame:
+    """One row per WR: usage, production and separation over the given routes."""
+    r = route_outcomes(routes)
+    g = r.groupby("nfl_id")
+    targeted = r[r.target == 1]
     out = pd.DataFrame({
         "routes": g.size(),
         "games": g["game_id"].nunique(),
@@ -55,15 +73,17 @@ def player_outcomes(routes: pd.DataFrame, sep_routes: pd.DataFrame) -> pd.DataFr
         "rec_yards": g["rec_yards"].sum(min_count=1),
     })
     out["target_rate"] = out.targets / out.routes
-    out["yprr"] = out.rec_yards.fillna(0) / out.routes
+    out["yprr"] = g["yards"].mean()
+    out["epa_per_route"] = g["epa_route"].mean()
     out["epa_per_target"] = targeted.groupby("nfl_id")["expected_points_added"].mean()
-    out["yac_oe"] = (caught.yards_after_catch - caught.expected_yards_after_catch).groupby(caught.nfl_id).mean()
+    out["catch_rate"] = g["catch"].mean()
+    out["yac_oe"] = g["yac_oe"].mean()
     s = sep_routes.groupby("nfl_id")
     out["sep_routes"] = s.size()
     out["separation"] = s["separation"].mean()
     out["soe"] = s["soe"].mean()
     out["man_share"] = s["coverage"].apply(lambda c: (c == "MAN_COVERAGE").mean())
-    return out
+    return out.add_prefix(prefix)
 
 
 def career(con) -> pd.DataFrame:

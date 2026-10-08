@@ -46,6 +46,19 @@ def test_slant_from_left_side_is_an_inside_break_at_route_depth():
         assert cut["kept"]
 
 
+
+def test_break_before_its_entry_window_clears_the_snap_is_not_kept():
+    # Quick release: up to speed in 0.5 s, then a 60-degree inside turn about 3 yd downfield at ~0.9 s.
+    speed = np.r_[np.linspace(0, 6, 6), np.full(24, 6.0)]
+    heading = np.r_[np.zeros(8), np.linspace(0, 60, 3), np.full(19, 60.0)]
+    f = _route(heading, speed, 30.0, CENTER + 12, "right").assign(game_id=1, play_id=1, nfl_id=7)
+    routes = pd.DataFrame({"game_id": [1], "play_id": [1], "nfl_id": [7], "route_ran": ["SLANT"],
+                           "play_direction": ["right"], "ttt": [2.0]})
+    (cut,) = R.route_cuts(f, routes).to_dict("records")
+    assert cut["t_after_snap"] < R.MIN_APEX_AFTER_SNAP
+    assert cut["depth"] >= R.MIN_DEPTH  # deep enough to be a break; dropped only for timing
+    assert not cut["kept"]
+
 def test_slot_adjustment_removes_depth_and_angle():
     rng = np.random.default_rng(0)
     n = 400
