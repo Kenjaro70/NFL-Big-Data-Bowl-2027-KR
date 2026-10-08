@@ -149,7 +149,7 @@ section(
     df("""SELECT drill_name, count(DISTINCT nfl_id) AS players, count(DISTINCT event_id) AS reps,
                  round(count(*) / count(DISTINCT event_id), 1) AS avg_frames
           FROM combine_tracking WHERE drill_type = 'SKILL_DRILLS_WR' AND entity_type = 'PLAYER'
-          GROUP BY 1 ORDER BY players DESC"""),
+          GROUP BY 1 ORDER BY players DESC, drill_name"""),
 )
 check("combine_tracking: one player per event",
       one("SELECT max(n) FROM (SELECT count(DISTINCT nfl_id) n FROM combine_tracking WHERE entity_type='PLAYER' GROUP BY event_id)") == 1)
@@ -221,7 +221,7 @@ section(
     "Players with any REG-season snap, by NFL position",
     df("""SELECT p.nfl_position, count(*) AS players, count(r.nfl_id) AS with_reg_snaps
           FROM players p LEFT JOIN (SELECT DISTINCT nfl_id FROM player_play_reg) r USING (nfl_id)
-          GROUP BY 1 ORDER BY players DESC"""),
+          GROUP BY 1 ORDER BY players DESC, nfl_position"""),
 )
 
 # %% [markdown]
@@ -259,23 +259,59 @@ for name, src, part in [
     ("combine", "(SELECT * FROM combine_tracking WHERE entity_type = 'PLAYER')", "event_id"),
     ("game (2025 REG)", "(SELECT * FROM game_tracking_reg WHERE season = 2025)", "game_id, play_id, nfl_id"),
 ]:
+    # a_tan: speed change (ds/dt); a_cen: turning (s * dθ/dt from dir). Both centered over ±1 frame.
     conv.append(df(f"""
-        WITH t AS (SELECT *, lead(x) OVER w - x AS dx, lead(y) OVER w - y AS dy
+        WITH t AS (SELECT *, lead(x) OVER w - x AS dx, lead(y) OVER w - y AS dy,
+                          sqrt(power(x - lag(x) OVER w, 2) + power(y - lag(y) OVER w, 2)) AS step_back,
+                          (lead(s) OVER w - lag(s) OVER w) / 0.2 AS a_tan,
+                          s * radians(((lead(dir) OVER w - lag(dir) OVER w) + 540) % 360 - 180) / 0.2 AS a_cen
                    FROM {src} WINDOW w AS (PARTITION BY {part} ORDER BY time))
         SELECT '{name}' AS source,
                median(abs(((dir - degrees(atan2(dx, dy))) + 540) % 360 - 180)) AS dir_err_deg,
                median(abs(s - 10 * sqrt(dx * dx + dy * dy))) AS speed_vs_disp_err,
-               count(*) FILTER (WHERE a < 0) AS negative_a_frames
+               median(dis / nullif(step_back, 0)) AS dis_vs_disp_ratio,
+               count(*) FILTER (WHERE a < 0) AS negative_a_frames,
+               corr(a, abs(a_tan)) AS a_corr_speed_change,
+               corr(a, sqrt(a_tan * a_tan + a_cen * a_cen)) AS a_corr_total
         FROM t WHERE s > 2 AND dx IS NOT NULL"""))
 conv = pd.concat(conv)
 section(
     "Direction / speed / acceleration conventions",
     conv,
     "`dir` is degrees clockwise from +y in both sources, and `s` matches frame displacement. "
-    "`a` is an unsigned magnitude in both (the few negatives in game data are glitches), "
-    "so deceleration must be derived from smoothed speed. Combine tracking has no `o`.",
+    "`a` is an unsigned magnitude in both (the few negatives in game data are glitches), and it is the "
+    "*total* acceleration, speed change and turning combined: it tracks sqrt(a_tan² + a_cen²) "
+    "(a_tan = ds/dt, a_cen = s·dθ/dt from `dir`) far better than |ds/dt| alone. So braking must be derived "
+    "from smoothed speed and turn load from s·dθ/dt. The match is weaker in game data, so compute these the "
+    "same way from x/y/s/dir in both sources rather than comparing the provided `a` across them. "
+    "`dis` equals frame displacement in game tracking but not in combine tracking (next table). "
+    "Combine tracking has no `o`.",
 )
 check("dir convention matches in combine and game tracking (median error < 5 deg)", (conv.dir_err_deg < 5).all())
+by_source = conv.set_index("source")
+check("game tracking: `dis` is the 0.1 s frame displacement (median ratio within 2% of 1)",
+      abs(by_source.dis_vs_disp_ratio["game (2025 REG)"] - 1) < 0.02,
+      f"{by_source.dis_vs_disp_ratio['game (2025 REG)']:.3f}")
+check("combine tracking: `dis` is NOT the frame displacement (median ratio < 0.8); use `s` or x/y",
+      by_source.dis_vs_disp_ratio["combine"] < 0.8, f"{by_source.dis_vs_disp_ratio['combine']:.2f}")
+a_detail = ", ".join(f"{src}: r={tot:.2f} vs {spd:.2f}" for src, tot, spd in
+                     conv[["source", "a_corr_total", "a_corr_speed_change"]].itertuples(index=False))
+check("`a` is total acceleration: tracks sqrt(a_tan² + a_cen²) far better than |ds/dt| in both sources",
+      (conv.a_corr_total > conv.a_corr_speed_change + 0.1).all(), a_detail)
+section(
+    "Combine `dis` vs frame displacement, by drill type",
+    df("""WITH t AS (SELECT *, sqrt(power(x - lag(x) OVER w, 2) + power(y - lag(y) OVER w, 2)) AS step
+                     FROM combine_tracking WHERE entity_type = 'PLAYER'
+                     WINDOW w AS (PARTITION BY event_id ORDER BY time))
+          SELECT drill_type, count(*) AS frames,
+                 round(quantile_cont(dis / nullif(step, 0), 0.1), 2) AS p10,
+                 round(median(dis / nullif(step, 0)), 2) AS median,
+                 round(quantile_cont(dis / nullif(step, 0), 0.9), 2) AS p90
+          FROM t WHERE s > 2 AND step IS NOT NULL GROUP BY 1 ORDER BY 1"""),
+    "Ratio of combine `dis` to the actual 0.1 s displacement from x/y (frames with s > 2 yd/s). "
+    "It is not a fixed scale factor: it varies by drill and is lowest in change-of-direction drills, "
+    "so it cannot be rescaled. Use `s` or x/y for distance in combine data.",
+)
 
 # %%
 report[4:4] = ["## Checks", "", *checks, ""]
