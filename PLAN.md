@@ -240,8 +240,8 @@ with the in-game effect) is the open decision for Phase 4.
 | 1 | Combine features | Oct 19 – Nov 8 | ✅ Oct 8: cut detector validated on combine drills; feature table per player (`notebooks/01_combine_features.py`) |
 | 2 | Game features + outcomes | Nov 9 – Nov 22 | ✅ Oct 8: detector validated on game routes; game cut features and outcome table per WR (`notebooks/02_game_features.py`) |
 | 3 | Modeling | Nov 23 – Dec 13 | ✅ Oct 8: pre-registered tests with leave-one-draft-class-out results vs. baseline and bootstrap intervals (`notebooks/03_models.py`) |
-| 4 | Writeup + viz | Dec 14 – Jan 2 | Oct 12: draft written (`writeup/writeup.md`, ~1,700 words, 6 figures + 1 table; figures from `notebooks/04_writeup.py`). Still to do: a public Kaggle notebook version |
-| 5 | Buffer + submit | Jan 3 – Jan 6 | Submitted by Jan 5 (one day early) |
+| 4 | Writeup + viz | Dec 14 – Jan 2 | Oct 12: draft written (`writeup/writeup.md`, ~1,700 words, 6 figures + 1 table; figures from `notebooks/04_writeup.py`). Kaggle notebook version in Phase 5 |
+| 5 | Buffer + submit | Jan 3 – Jan 6 | Oct 12: Kaggle notebook generated from the repo and run end to end (`kaggle/`); publishing steps in `kaggle/README.md`. Still to do: publish, choose the track, submit by Jan 5 |
 
 ## 7. Modeling rules
 
@@ -280,6 +280,7 @@ data/parquet/    # Parquet copies built by src/data.py (gitignored)
 data/features/   # derived cut / feature tables (gitignored)
 notebooks/       # 00_audit … 04_writeup
 writeup/         # writeup.md: the competition writeup
+kaggle/          # the public Kaggle notebook (built by scripts/build_kaggle_notebook.py) and publishing steps
 src/             # data, cuts, features, routes, outcomes, stats, models, viz
 tests/           # python -m pytest
 reports/figures/
@@ -289,5 +290,5 @@ reports/figures/
 
 - Track: Open or University (University = undergraduates only).
 - ~~Focus~~: resolved. Wide receivers (Phases 1–3).
-- Team: solo or team.
+- ~~Team~~: resolved. Solo.
 - ~~Data access~~: resolved. `scripts/download_data.sh` works with a `KGAT_` token in `KAGGLE_API_TOKEN` or `KAGGLE_API_KEY`.
