@@ -5,12 +5,14 @@ Named `data` rather than `io` so it never shadows the stdlib module.
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import duckdb
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW = ROOT / "data" / "raw"
+# The competition CSVs: data/raw/ by default, or BDB_RAW_DIR (e.g. Kaggle's read-only input folder).
+RAW = Path(os.environ.get("BDB_RAW_DIR", ROOT / "data" / "raw"))
 PARQUET = ROOT / "data" / "parquet"
 
 TABLES = [
