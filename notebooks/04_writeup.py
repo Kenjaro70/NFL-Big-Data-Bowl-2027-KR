@@ -315,7 +315,8 @@ for m in PRIMARY:
 card = pd.DataFrame(card)
 soe_pct = pct("soe", wr.loc[pid, "soe"])
 note(f"F5 {name}: combine vs game percentile among 62 qualified WRs",
-     "; ".join(f"{r['signal']} {r['combine percentile']:.0f} vs {r['game percentile']:.0f}" for _, r in card.iterrows()))
+     "; ".join(f"{r['signal']} {r['combine percentile']:.0f} vs {r['game percentile']:.0f}"
+               for _, r in card.iterrows()))
 note(f"F5 {name}: SOE percentile / routes / breaks", f"{soe_pct:.0f} / {int(wr.loc[pid, 'routes'])} / "
      f"{int(wr.loc[pid, 'game_n_cuts'])}")
 fig, ax = plt.subplots(figsize=(7.5, 3.2))
@@ -331,7 +332,8 @@ ax.grid(axis="y", visible=False)
 ax.set_xlim(-2, 102)
 ax.set_xlabel("percentile among the 62 qualified WRs")
 legend = [Line2D([], [], ls="", marker="s", ms=9, color=COMBINE, label="combine drills (draft day)"),
-          Line2D([], [], ls="", marker="o", ms=9, color=GAME, label=f"games ({int(wr.loc[pid, 'game_n_cuts'])} breaks)")]
+          Line2D([], [], ls="", marker="o", ms=9, color=GAME,
+                 label=f"games ({int(wr.loc[pid, 'game_n_cuts'])} breaks)")]
 ax.legend(handles=legend, frameon=False, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.28), ncol=2,
           labelcolor=INK)
 ax.set_title(f"{name} · separation over expected: {soe_pct:.0f}th percentile", loc="left")
@@ -343,8 +345,10 @@ plt.close(fig)
 # ## Context numbers for the prose
 
 # %%
-note("WRs in the cohort / with combine WR-drill features / qualified", f"{len(wr)} / {wr.pos_entry_speed.notna().sum()} / {len(q)}")
-note("game route windows / route breaks kept", f"{len(groutes[groutes.t_pass.notna() & groutes.t_snap.notna()]):,} / {len(gcuts):,}")
+note("WRs in the cohort / with combine WR-drill features / qualified",
+     f"{len(wr)} / {wr.pos_entry_speed.notna().sum()} / {len(q)}")
+n_windows = len(groutes[groutes.t_pass.notna() & groutes.t_snap.notna()])
+note("game route windows / route breaks kept", f"{n_windows:,} / {len(gcuts):,}")
 note("route-level SOE SD (Test 2 routes, yd)", f"{rt.soe.std():.2f}")
 note("player-level SOE SD (qualified WRs, yd)", f"{q.soe.std():.2f}")
 
