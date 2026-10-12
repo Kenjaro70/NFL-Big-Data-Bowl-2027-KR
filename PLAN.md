@@ -240,7 +240,7 @@ with the in-game effect) is the open decision for Phase 4.
 | 1 | Combine features | Oct 19 – Nov 8 | ✅ Oct 8: cut detector validated on combine drills; feature table per player (`notebooks/01_combine_features.py`) |
 | 2 | Game features + outcomes | Nov 9 – Nov 22 | ✅ Oct 8: detector validated on game routes; game cut features and outcome table per WR (`notebooks/02_game_features.py`) |
 | 3 | Modeling | Nov 23 – Dec 13 | ✅ Oct 8: pre-registered tests with leave-one-draft-class-out results vs. baseline and bootstrap intervals (`notebooks/03_models.py`) |
-| 4 | Writeup + viz | Dec 14 – Jan 2 | Draft notebook public; ≤ 2,000 words; < 10 figures |
+| 4 | Writeup + viz | Dec 14 – Jan 2 | Oct 12: draft written (`writeup/writeup.md`, ~1,700 words, 6 figures + 1 table; figures from `notebooks/04_writeup.py`). Still to do: a public Kaggle notebook version |
 | 5 | Buffer + submit | Jan 3 – Jan 6 | Submitted by Jan 5 (one day early) |
 
 ## 7. Modeling rules
@@ -279,6 +279,7 @@ data/raw/        # CSVs from scripts/download_data.sh (gitignored)
 data/parquet/    # Parquet copies built by src/data.py (gitignored)
 data/features/   # derived cut / feature tables (gitignored)
 notebooks/       # 00_audit … 04_writeup
+writeup/         # writeup.md: the competition writeup
 src/             # data, cuts, features, routes, outcomes, stats, models, viz
 tests/           # python -m pytest
 reports/figures/
