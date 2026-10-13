@@ -54,7 +54,8 @@ python notebooks/04_writeup.py
 python -m pytest
 ```
 
-To read the data from somewhere other than `data/raw/`, set `BDB_RAW_DIR` to that folder. The step scripts are in jupytext percent format, so they also open as notebooks.
+The six steps take about 6–7 minutes on a 4-core machine. To read the data from somewhere other than `data/raw/`,
+set `BDB_RAW_DIR` to that folder. The step scripts are in jupytext percent format, so they also open as notebooks.
 
 The Kaggle notebook writes `src/` and `notebooks/` exactly as they are here, then runs the same six steps. After any
 code change, rebuild it with `python scripts/build_kaggle_notebook.py`.
