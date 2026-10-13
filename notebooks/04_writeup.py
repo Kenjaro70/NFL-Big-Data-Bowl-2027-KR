@@ -5,15 +5,17 @@
 # the writeup cites that isn't already in reports 01–03. Descriptive only: no new hypothesis tests.
 #
 # - F1 `04_signature.png`: one WR's combine speed-out vs the same WR's game out-breaks (path and speed)
-# - F2 `04_within.png`: separation vs break score within receivers, binned
-# - F4 `04_ceiling.png`: how high an observed combine–game r could get vs what was observed
+# - F2 `04_within.png`: separation vs break score within receivers, binned, against man and against zone
+# - F4 `04_ceiling.png`: how high an observed combine–game r could get vs what was observed, with the
+#   positive control (top speed, from `03b_sensitivity.py`)
 # - F5 `04_card.png`: in-season scouting card for the F1 WR
 # - F6 `04_stabilize.png`: how many routes before game break metrics are trustworthy
 # (F3 is `03_tests.png` from Phase 3; T1 is a table in the writeup.)
 #
-# Run: `python notebooks/04_writeup.py` (after notebooks 01–03)
+# Run: `python notebooks/04_writeup.py` (after notebooks 01–03 and 03b)
 
 # %%
+import json
 import sys
 from pathlib import Path
 
@@ -61,6 +63,8 @@ def note(label: str, value) -> None:
 SERIES = ["#2a78d6", "#eb6834", "#1baf7a"]
 SURFACE, INK, INK2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
 GAME, COMBINE = SERIES[0], SERIES[1]
+# Man vs zone in F2: slots 1 and 3, which validate as a pair; orange stays "combine" across every figure.
+MAN, ZONE = SERIES[0], SERIES[2]
 plt.rcParams.update({
     "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
     "axes.edgecolor": GRID, "axes.labelcolor": INK2, "xtick.color": INK2, "ytick.color": INK2,
@@ -75,6 +79,9 @@ q = wr[wr.routes.fillna(0) >= MIN_ROUTES]
 gcuts = pd.read_parquet(FEATURES / "game_cuts.parquet")
 ccuts = pd.read_parquet(FEATURES / "combine_cuts.parquet")
 groutes = pd.read_parquet(FEATURES / "game_routes.parquet")
+if not (FEATURES / "sensitivity.json").exists():
+    raise SystemExit("Missing sensitivity.json: run notebooks/03b_sensitivity.py first.")
+positive_control = json.loads((FEATURES / "sensitivity.json").read_text(encoding="utf-8"))["positive_control"]
 check("62 qualified WRs", len(q) == 62, str(len(q)))
 
 # %% [markdown]
@@ -168,44 +175,58 @@ note("F1 combine speed-out: speed 1.5 s before / at the apex (yd/s)", f"{cs[0]:.
 note("F1 games: median speed 1.5 s before / at the apex (yd/s)", f"{med[0]:.1f} / {med[-WIN[0]]:.1f}")
 
 # %% [markdown]
-# ## F2. Within receivers: better breaks, more separation
+# ## F2. Within receivers: the break buys separation against man coverage
+#
+# The man / zone split is from `03b_sensitivity.py` (section 4), added after the pre-registered tests.
 
 # %%
+COVERAGES = [("MAN_COVERAGE", "man", MAN, "o", -0.04), ("ZONE_COVERAGE", "zone", ZONE, "D", 0.04)]
 pre = gcuts[gcuts.nfl_id.isin(q.index) & (gcuts.t_after_throw <= 1e-9)]
-rt = groutes[groutes.nfl_id.isin(q.index) & groutes.soe.notna()][[*KEY, "soe"]].merge(
+rt = groutes[groutes.nfl_id.isin(q.index) & groutes.soe.notna()][[*KEY, "soe", "coverage"]].merge(
     pre.groupby(KEY)[[f"{m}_z" for m in PRIMARY]].mean().reset_index(), on=KEY)
 check("F2 uses the Test 2 routes (8,371)", len(rt) == 8371, f"{len(rt):,}")
-fig, axes = plt.subplots(1, 2, figsize=(10, 3.8), sharey=True)
+rc = rt[rt.coverage.isin([c[0] for c in COVERAGES])]
+fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), sharey=True)
 rng = np.random.default_rng(0)
-for ax, m in zip(axes, ["entry_speed", "speed_retention"]):
-    x = rt[f"{m}_z"] / rt[f"{m}_z"].std()
-    xw = x - x.groupby(rt.nfl_id).transform("mean")
-    yw = rt.soe - rt.soe.groupby(rt.nfl_id).transform("mean")
-    b = pd.qcut(xw, 5, labels=False)
-    d = pd.DataFrame({"nfl_id": rt.nfl_id, "b": b, "xw": xw, "yw": yw})
-    mid = d.groupby("b").xw.median()
-    est = d.groupby("b").yw.mean()
-    players = d.nfl_id.unique()
-    rows = {p: np.flatnonzero(d.nfl_id.to_numpy() == p) for p in players}
-    boots = []
-    for _ in range(1000):
-        idx = np.concatenate([rows[p] for p in rng.choice(players, len(players))])
-        boots.append(d.iloc[idx].groupby("b").yw.mean().reindex(est.index).to_numpy())
-    lo, hi = np.nanquantile(np.vstack(boots), [0.025, 0.975], axis=0)
+for ax, m in zip(axes, PRIMARY):
+    x = rc[f"{m}_z"] / rt[f"{m}_z"].std()  # Test 2's units: SD of the route-level break score
+    fe = [rc.nfl_id, rc.coverage]          # a WR's man routes vs their own man routes, zone vs zone
+    xw = x - x.groupby(fe).transform("mean")
+    yw = rc.soe - rc.soe.groupby(fe).transform("mean")
+    slopes = []
+    for cov, label, col, marker, dx in COVERAGES:
+        k = (rc.coverage == cov).to_numpy()
+        d = pd.DataFrame({"nfl_id": rc.nfl_id[k], "b": pd.qcut(xw[k], 5, labels=False), "xw": xw[k], "yw": yw[k]})
+        mid = d.groupby("b").xw.median()
+        est = d.groupby("b").yw.mean()
+        players = d.nfl_id.unique()
+        rows = {p: np.flatnonzero(d.nfl_id.to_numpy() == p) for p in players}
+        boots = []
+        for _ in range(1000):
+            idx = np.concatenate([rows[p] for p in rng.choice(players, len(players))])
+            boots.append(d.iloc[idx].groupby("b").yw.mean().reindex(est.index).to_numpy())
+        lo, hi = np.nanquantile(np.vstack(boots), [0.025, 0.975], axis=0)
+        slope = np.polyfit(d.xw, d.yw, 1)[0]
+        xs = np.array([mid.min(), mid.max()])
+        ax.plot(xs, slope * xs, color=col, lw=1.2, ls="--", zorder=2)
+        ax.vlines(mid + dx, lo, hi, color=col, lw=2, zorder=3)
+        ax.plot(mid + dx, est, marker, ms=8, color=col, mec=SURFACE, mew=1.5, zorder=4, label=f"against {label}")
+        if m == PRIMARY[0]:  # direct labels on the first panel; the legend carries the rest
+            ax.annotate(f"against {label}", (mid.iloc[-1] + dx, est.iloc[-1]), xytext=(9, 0),
+                        textcoords="offset points", va="center", fontsize=8, color=INK)
+        slopes.append(f"{label} {slope:+.2f}")
+        note(f"F2 {NAMES[m]} against {label}: within-WR slope (yd per SD) / SOE gap, top vs bottom fifth (yd)",
+             f"{slope:+.2f} / {est.iloc[-1] - est.iloc[0]:+.2f}")
     ax.axhline(0, color=INK2, lw=1, zorder=0)
-    ax.vlines(mid, lo, hi, color=GAME, lw=2)
-    ax.plot(mid, est, "o", ms=8, color=GAME, mec=SURFACE, mew=1.5, zorder=3)
-    slope = np.polyfit(xw, yw, 1)[0]
-    xs = np.array([mid.min(), mid.max()])
-    ax.plot(xs, slope * xs, color=INK2, lw=1.5, ls="--")
-    ax.set_title(f"{NAMES[m].capitalize()}: {slope:+.2f} yd per SD", loc="left")
-    ax.set_xlabel(f"{NAMES[m]} vs the WR's own average (SD)")
-    note(f"F2 {NAMES[m]}: SOE gap, top vs bottom fifth of a WR's own routes (yd)", f"{est.iloc[-1] - est.iloc[0]:+.2f}")
+    ax.set_title(f"{NAMES[m].capitalize()}\n{', '.join(slopes)} yd per SD", loc="left")
+    ax.set_xlabel("vs the WR's own average (SD)")
 axes[0].set_ylabel("separation over expected\nvs the WR's own average (yd)")
-fig.suptitle("Within each receiver, routes with a faster, cleaner break are more open at the throw",
+axes[-1].legend(frameon=False, fontsize=8, loc="upper left", labelcolor=INK)
+fig.suptitle("Within each receiver, a faster, sharper break buys separation against man coverage",
              x=0.01, ha="left", color=INK, fontsize=11)
-fig.text(0.01, 0.885, "8,371 routes from 62 WRs, split into fifths of each WR's own routes; 95% player-bootstrap "
-         "intervals; dashed line = within-player slope", ha="left", color=INK2, fontsize=8)
+fig.text(0.01, 0.885, f"{len(rc):,} routes from 62 WRs. Each WR's routes against one coverage, split into fifths by "
+         "break score; 95% player-bootstrap intervals; dashed lines = within-WR slopes", ha="left", color=INK2,
+         fontsize=8)
 fig.tight_layout(rect=(0, 0, 1, 0.86))
 fig.savefig(FIGURES / "04_within.png", dpi=90)
 plt.close(fig)
@@ -236,23 +257,34 @@ cdf = pd.DataFrame(rows).set_index("m")
 for m in PRIMARY:
     note(f"F4 {NAMES[m]}: reliability of a single cut, combine / game",
          f"{cdf.loc[m, 'per_cut_combine']:.3f} / {cdf.loc[m, 'per_cut_game']:.3f}")
-fig, ax = plt.subplots(figsize=(8, 3.3))
-ypos = np.arange(len(PRIMARY))[::-1]
-for y, m in zip(ypos, PRIMARY):
+# Positive control (03b): top speed in the tracked 40 vs peak speed on go routes. Same Fisher-z interval as above.
+pcr, pcn = positive_control["r"], positive_control["wrs"]
+z, se = np.arctanh(pcr), 1 / np.sqrt(pcn - 3)
+cdf.loc["top_speed", ["r", "lo", "hi", "ceiling"]] = [pcr, np.tanh(z - 1.96 * se), np.tanh(z + 1.96 * se),
+                                                     positive_control["ceiling"]]
+note("F4 positive control, top speed (tracked 40 → go routes): observed r [95% CI] / ceiling / WRs",
+     f"{pcr:+.2f} [{cdf.loc['top_speed', 'lo']:+.2f}, {cdf.loc['top_speed', 'hi']:+.2f}] / "
+     f"{positive_control['ceiling']:.2f} / {pcn}")
+ROWS = [*PRIMARY, "top_speed"]
+LABELS = {**NAMES, "top_speed": f"top speed: tracked 40 → go routes\n(positive control, {pcn} WRs)"}
+fig, ax = plt.subplots(figsize=(8, 3.9))
+ypos = np.array([4.0, 3.0, 2.0, 0.6])  # a gap sets the positive control apart
+for y, m in zip(ypos, ROWS):
     rr = cdf.loc[m]
     ax.plot([0, rr.ceiling], [y, y], color=GRID, lw=8, solid_capstyle="butt", zorder=1)
     ax.plot(rr.ceiling, y, "|", ms=18, mew=2.5, color=INK2, zorder=2)
     ax.plot([rr.lo, rr.hi], [y, y], color=GAME, lw=2, zorder=3)
     ax.plot(rr.r, y, "o", ms=8, color=GAME, mec=SURFACE, mew=1.5, zorder=4)
+ax.axhline(1.3, color=GRID, lw=1, ls=":", zorder=0)
 ax.axvline(0, color=INK2, lw=1, zorder=0)
-ax.set_yticks(ypos, [NAMES[m] for m in PRIMARY])
+ax.set_yticks(ypos, [LABELS[m] for m in ROWS])
 ax.tick_params(axis="y", length=0)
 ax.grid(axis="y", visible=False)
 ax.set_xlim(-0.35, 1.0)
 ax.set_xlabel("correlation between the combine trait and the same trait in games")
 legend = [Line2D([], [], color=GRID, lw=8, label="largest r measurement noise allows: √(rel. combine × rel. games)"),
-          Line2D([], [], ls="", marker="o", ms=8, color=GAME, label="observed r, 95% interval (62 WRs)")]
-ax.legend(handles=legend, frameon=False, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=2,
+          Line2D([], [], ls="", marker="o", ms=8, color=GAME, label="observed r, 95% interval")]
+ax.legend(handles=legend, frameon=False, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.24), ncol=2,
           labelcolor=INK)
 fig.tight_layout()
 fig.savefig(FIGURES / "04_ceiling.png", dpi=90)
@@ -353,5 +385,5 @@ note("route-level SOE SD (Test 2 routes, yd)", f"{rt.soe.std():.2f}")
 note("player-level SOE SD (qualified WRs, yd)", f"{q.soe.std():.2f}")
 
 numbers[4:4] = ["## Checks", "", *checks, ""]
-(ROOT / "reports" / "04_numbers.md").write_text("\n".join(numbers) + "\n")
+(ROOT / "reports" / "04_numbers.md").write_text("\n".join(numbers) + "\n", encoding="utf-8")
 print(f"\n{len(checks)} checks passed; wrote reports/04_numbers.md")

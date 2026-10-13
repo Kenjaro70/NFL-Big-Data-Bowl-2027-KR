@@ -325,5 +325,5 @@ pd.concat([pos_z, agl_z]).to_parquet(FEATURES / "combine_cuts.parquet", index=Fa
 feats.to_parquet(FEATURES / "combine_player_features.parquet")
 report[4:4] = ["## Checks", "", *checks, ""]
 out = ROOT / "reports" / "01_combine_features.md"
-out.write_text("\n".join(report))
+out.write_text("\n".join(report), encoding="utf-8")
 print(f"\n{len(checks)} checks passed; {len(feats)} players; wrote {out.relative_to(ROOT)}")
