@@ -20,11 +20,13 @@
 # 5. **What a yard is worth.** Separation in football units: completion %, EPA per target and the chance of being
 #    targeted per yard of separation, pooled and by coverage, then applied to the effects above.
 #
-# Writes `reports/03b_sensitivity.md`. Every `check(...)` is a hard assertion.
+# Writes `reports/03b_sensitivity.md`, and `data/features/sensitivity.json` with the positive control for the
+# writeup's Figure 4. Every `check(...)` is a hard assertion.
 #
 # Run: `python notebooks/03b_sensitivity.py` (after `notebooks/03_models.py`)
 
 # %%
+import json
 import sys
 from pathlib import Path
 
@@ -264,6 +266,8 @@ rel_combine_top = 2 * r12 / (1 + r12)
 
 r, lo, hi = r_ci(pc.combine_top_speed, pc.game_top_speed)
 ceiling = np.sqrt(rel_combine_top * rel_game_top)
+positive_control = {"wrs": len(pc), "r": r, "boot_lo": lo, "boot_hi": hi, "ceiling": ceiling,
+                    "combine_reliability": rel_combine_top, "game_reliability": rel_game_top}
 beyond = player_test(pc, "game_top_speed", "combine_top_speed", standardize_y=True)
 r40, lo40, hi40 = r_ci(pc.forty.fillna(pc.forty.median()), pc.game_top_speed)
 es = q[["pos_entry_speed", "game_entry_speed"]].dropna()
@@ -626,6 +630,8 @@ section("The break effects in football units", trans, index=True,
              "their own uncertainty. Completion % and EPA apply when the WR is targeted.")
 
 # %%
+(FEATURES / "sensitivity.json").write_text(json.dumps({"positive_control": positive_control}, indent=1),
+                                           encoding="utf-8")
 report[6:6] = ["## Checks", "", *checks, ""]
 out = ROOT / "reports" / "03b_sensitivity.md"
 out.write_text("\n".join(report) + "\n", encoding="utf-8")

@@ -416,5 +416,5 @@ routes.merge(sr[[*R.KEY, "ttt_bin", "expected_separation", "soe"]], on=R.KEY, ho
 wr.to_parquet(FEATURES / "wr_analysis.parquet")
 report[4:4] = ["## Checks", "", *checks, ""]
 out = ROOT / "reports" / "02_game_features.md"
-out.write_text("\n".join(report))
+out.write_text("\n".join(report), encoding="utf-8")
 print(f"\n{len(checks)} checks passed; {len(wr)} WRs; wrote {out.relative_to(ROOT)}")

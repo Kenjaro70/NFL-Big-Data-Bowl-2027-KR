@@ -325,5 +325,5 @@ section(
 report[4:4] = ["## Checks", "", *checks, ""]
 out = ROOT / "reports" / "00_audit.md"
 out.parent.mkdir(parents=True, exist_ok=True)
-out.write_text("\n".join(report))
+out.write_text("\n".join(report), encoding="utf-8")
 print(f"\n{len(checks)} checks passed; wrote {out.relative_to(ROOT)}")
