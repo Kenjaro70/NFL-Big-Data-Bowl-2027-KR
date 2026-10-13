@@ -400,5 +400,5 @@ report.extend(["## Figure", "", "![The three pre-registered tests](figures/03_te
 # %%
 report[4:4] = ["## Checks", "", *checks, ""]
 out = ROOT / "reports" / "03_models.md"
-out.write_text("\n".join(report))
+out.write_text("\n".join(report), encoding="utf-8")
 print(f"\n{len(checks)} checks passed; wrote {out.relative_to(ROOT)}")
