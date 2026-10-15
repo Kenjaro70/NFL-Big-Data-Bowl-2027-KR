@@ -44,7 +44,8 @@ the man–zone split were added afterwards and are reported in `reports/03b_sens
 - 62 qualified receivers limit player-level tests to large effects, and the 2025 class has a single season.
 - The within-receiver effect is an association, not proof of cause.
 - The matched combine cuts, the positive control, the man–zone split and the football units are exploratory.
-- Rounded breaks that turn less than 30°, and turns in the first 1.5 s are not counted, which removes many slant breaks.
+- Rounded breaks that turn less than 30°, and turns in the first 1.5 s, are not counted, which removes many slant
+  breaks.
 
 ## Read
 
