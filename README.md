@@ -1,6 +1,6 @@
 # The cut that doesn't travel
 
-**NFL Big Data Bowl 2027.** What Combine route drills miss about NFL route breaks.
+**NFL Big Data Bowl 2027** · solo entry by Ken Roth. What Combine route drills miss about NFL route breaks.
 
 Does the way a wide receiver breaks in the Combine route drills carry into how they break in regular-season games,
 and into how open they get? One cut detector is applied unchanged to the 10 Hz Combine drill tracking and to 30,499
@@ -22,6 +22,30 @@ The Phase 3 tests were pre-registered. The matched combine cuts, the positive co
 the man–zone split were added afterwards and are reported in `reports/03b_sensitivity.md`.
 
 ![The three pre-registered tests](reports/figures/03_tests.png)
+
+## Method
+
+- **One cut detector for both settings.** Positions are smoothed (Savitzky–Golay, 0.7 s). A cut is a turn of at least
+  30° between the velocity half a second before and half a second after a frame; its apex is the slowest point. It
+  finds the drills' known geometry (two reversals in 94% of short-shuttle reps) and the routes' drawn direction (the
+  first break goes the way the route is drawn on 80–96% of slants, ins, posts, crossers, outs and corners).
+- **Three pre-registered signals per cut:** speed into the break, speed retention (apex speed ÷ entry speed) and peak
+  lateral acceleration, each scored against the same break run by other players. Peak braking is secondary.
+- **Samples.** 106 receivers with tracked WR position drills (about 1,500 reps); 30,499 regular-season routes with a
+  snap and a throw, of which 13,895 route breaks qualify. Inference uses the 62 receivers with at least 100 routes.
+- **Outcome.** Separation over expected (SOE): separation at the throw minus the average for the same route type,
+  coverage and time to throw.
+- **Statistics.** OLS with HC3 or player-clustered errors, 2,000 player-bootstrap intervals, Holm correction within
+  each test family, ridge regression validated by leaving out one draft class at a time, and receiver fixed effects
+  for the within-receiver tests.
+
+## Limits
+
+- 62 qualified receivers limit player-level tests to large effects, and the 2025 class has a single season.
+- The within-receiver effect is an association, not proof of cause.
+- The matched combine cuts, the positive control, the man–zone split and the football units are exploratory.
+- Rounded breaks that turn less than 30°, and turns in the first 1.5 s, are not counted, which removes many slant
+  breaks.
 
 ## Read
 
@@ -59,6 +83,11 @@ set `BDB_RAW_DIR` to that folder. The step scripts are in jupytext percent forma
 
 The Kaggle notebook writes `src/` and `notebooks/` exactly as they are here, then runs the same six steps. After any
 code change, rebuild it with `python scripts/build_kaggle_notebook.py`.
+
+## Data
+
+The competition data is not in this repository. Entrants can download it from the NFL Big Data Bowl 2027 page on
+Kaggle under the competition's rules; `scripts/download_data.sh` fetches it into `data/raw/`.
 
 ## Layout
 
