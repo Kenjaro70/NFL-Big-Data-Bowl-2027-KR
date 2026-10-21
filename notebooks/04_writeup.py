@@ -10,7 +10,7 @@
 #   positive control (top speed, from `03b_sensitivity.py`)
 # - F5 `04_card.png`: in-season scouting card for the F1 WR
 # - F6 `04_stabilize.png`: how many routes before game break metrics are trustworthy
-# - `04_cover.png` (560 × 120) and `04_cover@2x.png`: the Kaggle card image, F1's paths turned sideways
+# - `04_cover.png` (560 × 280) and `04_cover@2x.png`: the Kaggle card image, F1's paths turned sideways
 # (F3 is `03_tests.png` from Phase 3; T1 is a table in the writeup.)
 #
 # Run: `python notebooks/04_writeup.py` (after notebooks 01–03 and 03b)
@@ -192,9 +192,10 @@ fig.tight_layout(rect=(0, 0, 1, 0.94))
 fig.savefig(FIGURES / "04_signature.png", dpi=DPI)
 plt.close(fig)
 
-# Kaggle card image (560 × 120, plus a 2× copy): F1's paths turned sideways, approach running left to right.
-fig = plt.figure(figsize=(5.6, 1.2))
-ax = fig.add_axes((0.47, 0.04, 0.52, 0.92))
+# Kaggle card image (560 × 280, plus a 2× copy): F1's paths turned sideways, approach running left to right.
+# Text and paths stay in the middle 120 px so a thumbnail crop of the card still reads.
+fig = plt.figure(figsize=(5.6, 2.8))
+ax = fig.add_axes((0.47, 0.08, 0.51, 0.84))
 for _, rx, ry, _ in game_tr:
     ax.plot(ry, rx, color=GAME, lw=0.6, alpha=0.22)
 for _, rx, ry, _ in comb_tr:
@@ -202,8 +203,8 @@ for _, rx, ry, _ in comb_tr:
 ax.plot(0, 0, "o", ms=5, mfc=SURFACE, mec=INK, mew=1.2, zorder=4)
 ax.set_aspect("equal", "datalim")
 ax.axis("off")
-fig.text(0.03, 0.62, "The cut that doesn't travel", fontsize=14, color=INK, va="center")
-fig.text(0.03, 0.30, "Combine drill (orange) vs NFL game breaks (blue)", fontsize=7.5, color=INK2, va="center")
+fig.text(0.04, 0.575, "The cut that\ndoesn't travel", fontsize=19, color=INK, va="center", linespacing=1.1)
+fig.text(0.04, 0.355, "Combine drill (orange) vs\nNFL game breaks (blue)", fontsize=8.5, color=INK2, va="center")
 for scale, suffix in ((1, ""), (2, "@2x")):
     fig.savefig(FIGURES / f"04_cover{suffix}.png", dpi=100 * scale)
 plt.close(fig)
