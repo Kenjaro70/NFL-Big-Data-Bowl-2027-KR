@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
+from matplotlib.ticker import MaxNLocator  # noqa: E402
 
 from src import features as F  # noqa: E402
 from src import models as M  # noqa: E402
@@ -103,9 +104,9 @@ SURFACE, INK, INK2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
 plt.rcParams.update({
     "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
     "axes.edgecolor": GRID, "axes.labelcolor": INK2, "xtick.color": INK2, "ytick.color": INK2,
-    "axes.titlecolor": INK, "axes.titlesize": 10, "axes.labelsize": 9, "xtick.labelsize": 8, "ytick.labelsize": 9,
+    "axes.titlecolor": INK, "axes.titlesize": 12, "axes.labelsize": 11, "xtick.labelsize": 10, "ytick.labelsize": 11,
     "axes.spines.top": False, "axes.spines.right": False, "axes.spines.left": False, "axes.grid": True,
-    "grid.color": GRID, "grid.linewidth": 0.6, "lines.linewidth": 2, "font.size": 9,
+    "grid.color": GRID, "grid.linewidth": 0.6, "lines.linewidth": 2, "font.size": 11,
 })
 
 # %% [markdown]
@@ -366,7 +367,7 @@ section("Secondary analyses", sec,
 # ## 6. Figure: the three tests side by side
 
 # %%
-fig, axes = plt.subplots(1, 3, figsize=(13, 3.6), sharey=True)
+fig, axes = plt.subplots(1, 3, figsize=(13, 4.6), sharey=True)
 panels = [
     (t1, "coef", "Test 1 · combine → game trait\nβ beyond baseline (SD per SD)", "p_holm"),
     (t2, "b_w", "Test 2 · break score → separation\nwithin-player effect (yd SOE per SD)", "p_holm"),
@@ -381,6 +382,7 @@ for ax, (t, col, title, ph) in zip(axes, panels):
         ax.plot([lo, hi], [y, y], color=color, lw=2, solid_capstyle="round")
         ax.plot(est, y, "o", ms=8, mfc=color if sig else SURFACE, mec=color, mew=2, zorder=3)
     ax.axvline(0, color=INK2, lw=1, zorder=0)
+    ax.xaxis.set_major_locator(MaxNLocator(5))
     ax.set_title(title, loc="left")
     ax.grid(axis="y", visible=False)
     ax.tick_params(axis="y", length=0)
@@ -390,10 +392,12 @@ legend = [Line2D([], [], ls="", marker="o", ms=8, mfc=SERIES[0], mec=SERIES[0], 
           Line2D([], [], ls="", marker="o", ms=8, mfc=SURFACE, mec=SERIES[0], mew=2,
                  label="primary signal, not significant after Holm"),
           Line2D([], [], ls="", marker="o", ms=8, mfc=SURFACE, mec=INK2, mew=2, label="secondary (not corrected)")]
-fig.legend(handles=legend, loc="lower center", ncol=3, frameon=False, fontsize=8, labelcolor=INK)
-fig.suptitle("Estimates with 95% bootstrap intervals, 62 qualified WRs", x=0.01, ha="left", color=INK, fontsize=11)
-fig.tight_layout(rect=(0, 0.08, 1, 0.95))
-fig.savefig(FIGURES / "03_tests.png", dpi=90)
+fig.legend(handles=legend, loc="lower center", ncol=3, frameon=False, fontsize=10, labelcolor=INK)
+fig.suptitle("Only the in-game break moves separation; the combine traits predict neither the game trait nor "
+             "separation", x=0.01, ha="left", color=INK, fontsize=13)
+fig.text(0.01, 0.875, "Estimates with 95% bootstrap intervals, 62 qualified WRs", ha="left", color=INK2, fontsize=10)
+fig.tight_layout(rect=(0, 0.08, 1, 0.87))
+fig.savefig(FIGURES / "03_tests.png", dpi=150)
 plt.close(fig)
 report.extend(["## Figure", "", "![The three pre-registered tests](figures/03_tests.png)", ""])
 

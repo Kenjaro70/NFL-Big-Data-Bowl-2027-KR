@@ -68,10 +68,12 @@ MAN, ZONE = SERIES[0], SERIES[2]
 plt.rcParams.update({
     "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
     "axes.edgecolor": GRID, "axes.labelcolor": INK2, "xtick.color": INK2, "ytick.color": INK2,
-    "axes.titlecolor": INK, "axes.titlesize": 10, "axes.labelsize": 9, "xtick.labelsize": 8, "ytick.labelsize": 8,
+    "axes.titlecolor": INK, "axes.titlesize": 12, "axes.labelsize": 11, "xtick.labelsize": 10, "ytick.labelsize": 10,
     "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True, "grid.color": GRID,
-    "grid.linewidth": 0.6, "lines.linewidth": 2, "font.size": 9,
+    "grid.linewidth": 0.6, "lines.linewidth": 2, "font.size": 11,
 })
+# Kaggle shows figures at its column width (~60% of the wide ones), so text is sized for that, saved at a sharp dpi.
+DPI, SMALL, SUPTITLE = 150, 10, 13
 
 con = connect()
 wr = pd.read_parquet(FEATURES / "wr_analysis.parquet")
@@ -97,6 +99,19 @@ p_outs = outs[outs.nfl_id == pid]
 p_so = so[so.nfl_id == pid]
 note("F1 receiver (most game out-breaks among qualified WRs who ran the combine speed-out)",
      f"{name}, {len(p_outs)} game out-breaks, {len(p_so)} combine speed-out rep(s)")
+
+# Speed into the break (peak speed in the 1.5 s before the apex), in raw yd/s, against the other qualified WRs.
+drill_peers = so[so.nfl_id.isin(q.index)].groupby("nfl_id").entry_speed.mean()
+game_peers = outs.groupby("nfl_id").entry_speed.median()
+game_peers_z = outs.groupby("nfl_id").entry_speed_z.mean()   # adjusted for depth and angle, as in the analysis
+c_entry, g_entry = drill_peers[pid], game_peers[pid]
+note("F1 speed into the break (yd/s): combine speed-out / median game out-break",
+     f"{c_entry:.2f} / {g_entry:.2f}")
+note("F1 qualified WRs' median speed into the break (yd/s): drill / game out-breaks",
+     f"{drill_peers.median():.2f} ({len(drill_peers)} WRs) / {game_peers.median():.2f} ({len(game_peers)} WRs)")
+note("F1 receiver's percentile: drill / game out-breaks raw / game out-breaks adjusted for depth and angle",
+     f"{(drill_peers < c_entry).mean() * 100:.0f} / {(game_peers < g_entry).mean() * 100:.0f} / "
+     f"{(game_peers_z < game_peers_z[pid]).mean() * 100:.0f}")
 
 cframes = con.sql(f"""SELECT event_id, time, x, y FROM combine_tracking
                      WHERE entity_type = 'PLAYER' AND event_id IN ({', '.join(f"'{e}'" for e in p_so.event_id)})
@@ -156,19 +171,24 @@ for t, rx, ry, s in comb_tr:
     a1.plot(rx, ry, color=COMBINE, lw=2.5)
     a2.plot(t, s, color=COMBINE, lw=2.5, label="combine: speed-out drill")
 a2.axvline(0, color=INK2, lw=1, zorder=0)
+# The qualified WRs' median speed into the break, drawn over the entry window where it is measured.
+for v, col, label in ((drill_peers.median(), COMBINE, "drill"), (game_peers.median(), GAME, "game out-breaks")):
+    a2.hlines(v, WIN[0] * C.DT, 0, colors=col, linestyles=(0, (1, 1.5)), lw=2, zorder=5,
+              label=f"{len(drill_peers)} WRs' median, {label}: {v:.1f}")
 a1.plot(0, 0, "o", ms=8, mfc=SURFACE, mec=INK, mew=1.5, zorder=4)
 a1.set_aspect("equal", "datalim")
-a1.set_title("Path, approach pointing up, apex at the circle", loc="left")
+a1.set_title("Path, approach pointing up,\napex at the circle", loc="left")
 a1.set_xlabel("yd")
 a1.set_ylabel("yd")
-a2.set_title("Speed through the break", loc="left")
+a2.set_title(f"Speed into the break (peak in the 1.5 s before the apex):\n"
+             f"{c_entry:.1f} yd/s in the drill, {g_entry:.1f} in games (median)", loc="left")
 a2.set_xlabel("seconds from the apex of the break")
 a2.set_ylabel("speed (yd/s)")
-a2.legend(frameon=False, loc="lower left", fontsize=8, labelcolor=INK)
-fig.suptitle(f"{name}: the same out-break in the combine drill and in {len(game_tr)} regular-season routes",
-             x=0.01, ha="left", color=INK, fontsize=11)
+a2.legend(frameon=False, loc="lower left", fontsize=SMALL, labelcolor=INK)
+fig.suptitle(f"{name}: the same speed into the out-break in the drill and in games, ranked very differently",
+             x=0.01, ha="left", color=INK, fontsize=SUPTITLE)
 fig.tight_layout(rect=(0, 0, 1, 0.94))
-fig.savefig(FIGURES / "04_signature.png", dpi=90)
+fig.savefig(FIGURES / "04_signature.png", dpi=DPI)
 plt.close(fig)
 cs = comb_tr[0][3]
 note("F1 combine speed-out: speed 1.5 s before / at the apex (yd/s)", f"{cs[0]:.1f} / {cs[-WIN[0]]:.1f}")
@@ -213,7 +233,7 @@ for ax, m in zip(axes, PRIMARY):
         ax.plot(mid + dx, est, marker, ms=8, color=col, mec=SURFACE, mew=1.5, zorder=4, label=f"against {label}")
         if m == PRIMARY[0]:  # direct labels on the first panel; the legend carries the rest
             ax.annotate(f"against {label}", (mid.iloc[-1] + dx, est.iloc[-1]), xytext=(9, 0),
-                        textcoords="offset points", va="center", fontsize=8, color=INK)
+                        textcoords="offset points", va="center", fontsize=SMALL, color=INK)
         slopes.append(f"{label} {slope:+.2f}")
         note(f"F2 {NAMES[m]} against {label}: within-WR slope (yd per SD) / SOE gap, top vs bottom fifth (yd)",
              f"{slope:+.2f} / {est.iloc[-1] - est.iloc[0]:+.2f}")
@@ -221,14 +241,14 @@ for ax, m in zip(axes, PRIMARY):
     ax.set_title(f"{NAMES[m].capitalize()}\n{', '.join(slopes)} yd per SD", loc="left")
     ax.set_xlabel("vs the WR's own average (SD)")
 axes[0].set_ylabel("separation over expected\nvs the WR's own average (yd)")
-axes[-1].legend(frameon=False, fontsize=8, loc="upper left", labelcolor=INK)
+axes[-1].legend(frameon=False, fontsize=SMALL, loc="upper left", labelcolor=INK)
 fig.suptitle("Within each receiver, a faster, sharper break buys separation against man coverage",
-             x=0.01, ha="left", color=INK, fontsize=11)
-fig.text(0.01, 0.885, f"{len(rc):,} routes from 62 WRs. Each WR's routes against one coverage, split into fifths by "
-         "break score; 95% player-bootstrap intervals; dashed lines = within-WR slopes", ha="left", color=INK2,
-         fontsize=8)
-fig.tight_layout(rect=(0, 0, 1, 0.86))
-fig.savefig(FIGURES / "04_within.png", dpi=90)
+             x=0.01, ha="left", color=INK, fontsize=SUPTITLE)
+fig.text(0.01, 0.905, f"{len(rc):,} routes with a coverage label, 62 WRs. Each WR's routes against one coverage, "
+         "split into fifths by break score.\n95% player-bootstrap intervals; dashed lines = within-WR slopes.",
+         ha="left", va="top", color=INK2, fontsize=SMALL)
+fig.tight_layout(rect=(0, 0, 1, 0.83))
+fig.savefig(FIGURES / "04_within.png", dpi=DPI)
 plt.close(fig)
 
 # %% [markdown]
@@ -267,7 +287,7 @@ note("F4 positive control, top speed (tracked 40 → go routes): observed r [95%
      f"{positive_control['ceiling']:.2f} / {pcn}")
 ROWS = [*PRIMARY, "top_speed"]
 LABELS = {**NAMES, "top_speed": f"top speed: tracked 40 → go routes\n(positive control, {pcn} WRs)"}
-fig, ax = plt.subplots(figsize=(8, 3.9))
+fig, ax = plt.subplots(figsize=(9, 4.8))
 ypos = np.array([4.0, 3.0, 2.0, 0.6])  # a gap sets the positive control apart
 for y, m in zip(ypos, ROWS):
     rr = cdf.loc[m]
@@ -284,10 +304,12 @@ ax.set_xlim(-0.35, 1.0)
 ax.set_xlabel("correlation between the combine trait and the same trait in games")
 legend = [Line2D([], [], color=GRID, lw=8, label="largest r measurement noise allows: √(rel. combine × rel. games)"),
           Line2D([], [], ls="", marker="o", ms=8, color=GAME, label="observed r, 95% interval")]
-ax.legend(handles=legend, frameon=False, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.24), ncol=2,
+ax.legend(handles=legend, frameon=False, fontsize=SMALL, loc="upper center", bbox_to_anchor=(0.45, -0.2), ncol=1,
           labelcolor=INK)
-fig.tight_layout()
-fig.savefig(FIGURES / "04_ceiling.png", dpi=90)
+fig.suptitle("The combine cut traits sit far below what measurement noise allows; top speed carries over",
+             x=0.01, ha="left", color=INK, fontsize=SUPTITLE)
+fig.tight_layout(rect=(0, 0, 1, 0.95))
+fig.savefig(FIGURES / "04_ceiling.png", dpi=DPI)
 plt.close(fig)
 
 # %% [markdown]
@@ -307,22 +329,23 @@ for n in [25, 50, 100, 150, 200, 300, 400]:
                  "breaks": sub.groupby("nfl_id").size().median()})
 stab = pd.DataFrame(stab)
 print(stab.round(2).to_string())
-fig, ax = plt.subplots(figsize=(7.5, 3.6))
-for m, col in zip(PRIMARY, SERIES):
-    ax.plot(stab.routes, stab[m], "-o", color=col, ms=6, mec=SURFACE, mew=1.2, label=NAMES[m])
+fig, ax = plt.subplots(figsize=(8, 4.4))
+# All three are game metrics, so none is orange (orange means "combine" in every figure).
+for m, col, marker in zip(PRIMARY, [GAME, INK2, SERIES[2]], ["o", "^", "D"]):
+    ax.plot(stab.routes, stab[m], "-", marker=marker, color=col, ms=7, mec=SURFACE, mew=1.2, label=NAMES[m])
 ax.axhline(0.7, color=INK2, lw=1, ls="--")
-ax.text(5, 0.71, "0.7", fontsize=8, color=INK2, va="bottom", ha="left")
+ax.text(5, 0.71, "0.7", fontsize=SMALL, color=INK2, va="bottom", ha="left")
 ax.axhline(0, color=INK2, lw=1, zorder=0)
 ax.set_xlabel("a WR's first N regular-season routes")
 ax.set_ylabel("split-half reliability")
 ax.set_xlim(0, stab.routes.max() * 1.05)
 ax.set_ylim(min(-0.3, stab[PRIMARY].min().min() - 0.05), 1)
-ax.legend(frameon=False, fontsize=8, loc="lower right", labelcolor=INK)
-fig.suptitle("How fast in-game break metrics settle", x=0.01, ha="left", color=INK, fontsize=11)
-fig.text(0.01, 0.875, "Each point uses the WRs with at least N routes (62 at N ≤ 100, 31 at N = 400)",
-         ha="left", color=INK2, fontsize=8)
-fig.tight_layout(rect=(0, 0, 1, 0.86))
-fig.savefig(FIGURES / "04_stabilize.png", dpi=90)
+ax.legend(frameon=False, fontsize=SMALL, loc="lower right", labelcolor=INK)
+fig.suptitle("How fast in-game break metrics settle", x=0.01, ha="left", color=INK, fontsize=SUPTITLE)
+fig.text(0.01, 0.885, "Each point uses the WRs with at least N routes (62 at N ≤ 100, 31 at N = 400)",
+         ha="left", color=INK2, fontsize=SMALL)
+fig.tight_layout(rect=(0, 0, 1, 0.88))
+fig.savefig(FIGURES / "04_stabilize.png", dpi=DPI)
 plt.close(fig)
 for m in PRIMARY:
     hit = stab.loc[stab[m] >= 0.7, "routes"]
@@ -351,7 +374,13 @@ note(f"F5 {name}: combine vs game percentile among 62 qualified WRs",
                for _, r in card.iterrows()))
 note(f"F5 {name}: SOE percentile / routes / breaks", f"{soe_pct:.0f} / {int(wr.loc[pid, 'routes'])} / "
      f"{int(wr.loc[pid, 'game_n_cuts'])}")
-fig, ax = plt.subplots(figsize=(7.5, 3.2))
+# Robustness: the card uses the pre-registered combine features (every WR drill cut, including the Gauntlet).
+# The matched cuts from 03b keep only each drill's designed route break; the combine percentiles should hold.
+matched = pd.read_parquet(FEATURES / "combine_matched_features.parquet").reindex(q.index)
+note(f"F5 {name}: combine percentile on matched cuts (03b), for comparison",
+     "; ".join(f"{NAMES[m]} {(matched[f'match_{m}'] < matched.loc[pid, f'match_{m}']).mean() * 100:.0f}"
+               for m in PRIMARY) + f" ({int(matched.loc[pid, 'match_n_cuts'])} cuts)")
+fig, ax = plt.subplots(figsize=(8, 3.6))
 ypos = np.arange(len(card))[::-1]
 for y, (_, r) in zip(ypos, card.iterrows()):
     ax.plot([0, 100], [y, y], color=GRID, lw=6, solid_capstyle="round", zorder=1)
@@ -366,11 +395,11 @@ ax.set_xlabel("percentile among the 62 qualified WRs")
 legend = [Line2D([], [], ls="", marker="s", ms=9, color=COMBINE, label="combine drills (draft day)"),
           Line2D([], [], ls="", marker="o", ms=9, color=GAME,
                  label=f"games ({int(wr.loc[pid, 'game_n_cuts'])} breaks)")]
-ax.legend(handles=legend, frameon=False, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.28), ncol=2,
+ax.legend(handles=legend, frameon=False, fontsize=SMALL, loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=2,
           labelcolor=INK)
 ax.set_title(f"{name} · separation over expected: {soe_pct:.0f}th percentile", loc="left")
 fig.tight_layout()
-fig.savefig(FIGURES / "04_card.png", dpi=90)
+fig.savefig(FIGURES / "04_card.png", dpi=DPI)
 plt.close(fig)
 
 # %% [markdown]
