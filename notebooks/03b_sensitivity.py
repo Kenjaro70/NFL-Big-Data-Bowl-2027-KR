@@ -20,8 +20,9 @@
 # 5. **What a yard is worth.** Separation in football units: completion %, EPA per target and the chance of being
 #    targeted per yard of separation, pooled and by coverage, then applied to the effects above.
 #
-# Writes `reports/03b_sensitivity.md`, and `data/features/sensitivity.json` with the positive control for the
-# writeup's Figure 4. Every `check(...)` is a hard assertion.
+# Writes `reports/03b_sensitivity.md`, `data/features/sensitivity.json` with the positive control for the
+# writeup's Figure 4, and `data/features/combine_matched_features.parquet` for the robustness note on Figure 5.
+# Every `check(...)` is a hard assertion.
 #
 # Run: `python notebooks/03b_sensitivity.py` (after `notebooks/03_models.py`)
 
@@ -632,6 +633,7 @@ section("The break effects in football units", trans, index=True,
 # %%
 (FEATURES / "sensitivity.json").write_text(json.dumps({"positive_control": positive_control}, indent=1),
                                            encoding="utf-8")
+matched.to_parquet(FEATURES / "combine_matched_features.parquet")  # for the F5 scouting card in 04_writeup.py
 report[6:6] = ["## Checks", "", *checks, ""]
 out = ROOT / "reports" / "03b_sensitivity.md"
 out.write_text("\n".join(report) + "\n", encoding="utf-8")

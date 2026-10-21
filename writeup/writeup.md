@@ -29,16 +29,17 @@ speed) and **peak lateral acceleration** (how hard the receiver turns). Each is 
 other players (the same drill break at the Combine; the same route type and side in games, adjusted for depth and turn
 angle). Peak braking is a secondary signal.
 
-The Combine side uses the 106 receivers with tracked WR position drills (about 1,500 reps of 15 route drills). The
-game side uses 30,499 regular-season routes with a snap and a throw, from which 13,895 route breaks qualify. Turns in
-the first 1.5 s, mostly release moves and receivers in motion, are left out. The outcome is **separation over expected
+The Combine side uses the 106 receivers from the 2023–2025 draft classes with tracked WR position drills (about 1,500
+reps of 15 route drills). The game side uses their 30,499 regular-season routes with a snap and a throw, from which
+13,895 route breaks qualify. Turns in the first 1.5 s, mostly release moves and receivers in motion, are left out. The outcome is **separation over expected
 (SOE)**: separation at the throw minus the average for the same route type, coverage and time to throw. Inference uses
 the 62 receivers with at least 100 regular-season routes.
 
 ![Jordan Addison's combine speed-out vs 141 game out-breaks](../reports/figures/04_signature.png)
 
-*Figure 1. One receiver, one break, two settings: Jordan Addison's combine speed-out and 141 game out-breaks. The paths
-match; the speeds into the break don't.*
+*Figure 1. One receiver, one break, two settings: Jordan Addison's combine speed-out and 141 game out-breaks. He enters
+the break at 6.3 yd/s in both, but in the drill that ranks 10th percentile of the 62 receivers; in games, above the
+median.*
 
 ## 3. Finding 1: the combine cut doesn't travel
 
@@ -71,7 +72,7 @@ the break (β up to 0.37). What the data rule out is a strong one.
 
 ## 4. Finding 2: the game cut matters, mostly against man coverage
 
-Does the mechanic matter on the field at all? If not, the combine result would be uninteresting.
+Does the mechanic matter on the field at all? If it didn't, there would be nothing for the Combine to predict.
 
 The test compares each receiver's routes with each other: on routes where a receiver breaks better than their own
 average, are they more open at the throw? Comparing a receiver to themself removes role, quarterback and scheme. It
@@ -99,7 +100,7 @@ correction for the four signals tested.
 ![Within-receiver separation vs break quality, against man and zone](../reports/figures/04_within.png)
 
 *Figure 3. Within each receiver, separation rises with the break against man coverage and barely against zone. Points
-are fifths of each receiver's own routes against that coverage.*
+are fifths of each receiver's own routes against that coverage (the 8,366 routes with a coverage label).*
 
 In football units (within receivers, holding air yards, route and time to throw fixed), a yard of separation at the
 throw is worth about 7 points of completion rate and 0.18 EPA per target against man (5 points and 0.11 overall). So
@@ -147,9 +148,8 @@ a reliability of about 0.7 by 200–300 routes (11–16 games for a regular); re
 *Figure 6. Split-half reliability of each game metric over a receiver's first N routes.*
 
 **For coaching:** the effect separates the routes a receiver runs well from the ones they don't, and it lives in man
-coverage. Flag man-coverage routes where a receiver's entry speed or turn drops below their own norm: against man, their
-slowest fifth of breaks comes out about 0.65 yd less open than their fastest, about 4 points of completion rate.
-Against zone, the flag means little.
+coverage. Flag man-coverage routes where a receiver's entry speed or turn drops below their own norm; against zone,
+the flag means little.
 
 ## 7. Limits and what's next
 
@@ -158,8 +158,6 @@ Against zone, the flag means little.
   slightly, but unmeasured details such as defender leverage and technique could move both break speed and separation.
 - **Exploratory results.** The matched combine cuts, the positive control, the man–zone split and the football units
   came after the pre-registered tests. The units multiply two estimates, so treat them as approximate.
-- **The outcome.** Heavier receivers are less open in this sample (−0.14 yd per SD, exploratory). It isn't alignment:
-  the share of routes run from the slot doesn't explain it.
 - **Scope.** Rounded breaks under 30° and turns in the first 1.5 s are not counted, which removes many slant breaks.
   Without ball tracking in games, "inside" means toward the middle of the field.
 
@@ -169,8 +167,8 @@ stable, predict the following season's separation.
 
 ## Appendix
 
-Code, pre-registration (PLAN.md, commit `6d770a1`) and every table behind these numbers: the linked public notebook
-and repository (`notebooks/00_audit.py` … `04_writeup.py`, with `03b_sensitivity.py` for the checks added after the
-pre-registered tests; `reports/00`–`04` and `03b`). Statistics: OLS with HC3 or player-clustered errors, player
-bootstrap intervals, Holm correction within each test family, ridge regression validated by leaving out one draft
-class at a time, and receiver fixed effects for the play-context and coverage splits.
+Code and every table behind these numbers: the attached public notebook and the
+[repository](https://github.com/Kenjaro70/NFL-Big-Data-Bowl-2027-KR). The pre-registration is PLAN.md as of
+[commit 6d770a1](https://github.com/Kenjaro70/NFL-Big-Data-Bowl-2027-KR/commit/6d770a1). Statistics: OLS with HC3 or
+player-clustered errors, player bootstrap intervals, Holm correction within each test family, ridge regression
+validated by leaving out one draft class at a time, and receiver fixed effects for the play-context and coverage splits.
